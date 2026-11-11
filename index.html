@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="km">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>អុំទូក · Om Touk — Cambodian Water Festival Boat Race</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:wght@400;600;700&family=Moul&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<!-- ============ IN-GAME HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="topbar">
+    <div id="progress">
+      <div class="p-label"><span id="distLeft">—</span></div>
+      <div id="track"><span class="flag start"></span><span class="flag finish"></span></div>
+    </div>
+    <div id="ranks"></div>
+  </div>
+  <div id="countdown"></div>
+  <div id="banner"></div>
+  <div id="panels"></div>
+  <div id="hudBtns">
+    <button id="btnMute" title="Sound (M)">🔊</button>
+    <button id="btnPause" title="Pause (P)">❚❚</button>
+  </div>
+</div>
+
+<!-- ============ MENU ============ -->
+<div id="menu" class="overlay">
+  <div class="card">
+    <div class="ornament">❖ ❖ ❖</div>
+    <h1 class="title-kh">អុំទូក</h1>
+    <h2 class="title-en">OM TOUK</h2>
+    <p class="subtitle">ព្រះរាជពិធីបុណ្យអុំទូក<br><span>Royal Water Festival · Dragon Boat Rhythm Race</span></p>
+
+    <div class="group">
+      <div class="glabel">របៀបលេង <span>Mode</span></div>
+      <div class="seg" id="segMode">
+        <button data-mode="1" class="on"><b>អ្នកលេងម្នាក់</b><i>1 Player vs AI</i></button>
+        <button data-mode="2"><b>អ្នកលេងពីរនាក់</b><i>2 Players · Local</i></button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="glabel">កម្រិត <span>Difficulty</span></div>
+      <div class="seg" id="segDiff">
+        <button data-diff="easy"><b>ងាយ</b><i>Easy</i></button>
+        <button data-diff="normal" class="on"><b>មធ្យម</b><i>Normal</i></button>
+        <button data-diff="hard"><b>ពិបាក</b><i>Hard</i></button>
+      </div>
+    </div>
+
+    <button id="btnStart" class="big"><b>ចាប់ផ្ដើម</b><i>START RACE</i></button>
+    <button id="btnHelp" class="link">របៀបលេង · How to play</button>
+    <div class="foot"><span id="ctrlHint"></span></div>
+  </div>
+</div>
+
+<!-- ============ HELP ============ -->
+<div id="help" class="overlay hidden">
+  <div class="card wide">
+    <h3>របៀបលេង · How to play</h3>
+    <ul class="how">
+      <li><b>ចុចតាមចង្វាក់ស្គរ</b><br>Press your key exactly when a drum note reaches the golden ring. Your crew paddles in time with you.</li>
+      <li><b>ភាពស៊ីចង្វាក់ (Sync)</b><br><em>Perfect</em> and <em>Good</em> hits raise crew sync → more speed. Misses or stray taps shake the crew and slow the boat.</li>
+      <li><b>កម្លាំងនាគ (Naga Power)</b><br>Every 10 hits in a row unleashes a golden speed burst!</li>
+      <li><b>ដល់ទីបញ្ចប់មុនគេ</b><br>Be first across the finish line in front of the Royal Palace.</li>
+    </ul>
+    <table class="keys">
+      <tr><td>1 Player</td><td><kbd>Space</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> or tap the screen</td></tr>
+      <tr><td>Player 1</td><td><kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd></td></tr>
+      <tr><td>Player 2</td><td><kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd></td></tr>
+      <tr><td>Other</td><td><kbd>P</kbd> pause · <kbd>M</kbd> sound</td></tr>
+    </table>
+    <button id="btnHelpClose" class="big small"><b>យល់ហើយ</b><i>Got it</i></button>
+  </div>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div id="pause" class="overlay hidden">
+  <div class="card">
+    <h3>ផ្អាក · Paused</h3>
+    <button id="btnResume" class="big"><b>បន្តទៀត</b><i>Resume</i></button>
+    <button id="btnPauseMenu" class="link">ម៉ឺនុយ · Back to menu</button>
+  </div>
+</div>
+
+<!-- ============ RESULTS ============ -->
+<div id="results" class="overlay hidden">
+  <div class="card wide">
+    <div class="ornament">❖ ❖ ❖</div>
+    <h3 id="resTitle">—</h3>
+    <p id="resSub" class="subtitle"></p>
+    <table id="resTable"></table>
+    <div class="btnrow">
+      <button id="btnAgain" class="big"><b>ប្រណាំងម្ដងទៀត</b><i>Race again</i></button>
+      <button id="btnResMenu" class="big alt"><b>ម៉ឺនុយ</b><i>Menu</i></button>
+    </div>
+  </div>
+</div>
+
+<div id="loading"><div>អុំទូក · OM TOUK</div><small>Loading…</small></div>
+
+<script src="lib/three.min.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
