@@ -1355,6 +1355,7 @@ function setupRace() {
 
 function startRace() {
   SFX.init();
+  NET.rmPending = NET.rmAsked = false; $('rematch').classList.add('hidden');
   setupRace();
   G.state = 'countdown';
   ['menu', 'results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
@@ -1727,9 +1728,16 @@ $('btnHelp').onclick = () => $('help').classList.remove('hidden');
 $('btnHelpClose').onclick = () => $('help').classList.add('hidden');
 $('btnAgain').onclick = () => {
   if (G.mode !== 3) return startRace();
-  if (NET.role === 'host') hostStart();
-  else { netSend({ t: 'rematch' }); $('btnAgain').querySelector('i').textContent = 'WAITING FOR HOST…'; }
+  if (!NET.ready) return;
+  NET.rmPending = true; netSend({ t: 'rematch' });
+  $('btnAgain').querySelector('i').textContent = 'WAITING FOR OPPONENT…';
 };
+function rematchAccept() {
+  $('rematch').classList.add('hidden'); NET.rmAsked = false;
+  if (NET.role === 'host') hostStart(); else netSend({ t: 'rematch-ok' });
+}
+$('btnRmYes').onclick = rematchAccept;
+$('btnRmNo').onclick = () => { $('rematch').classList.add('hidden'); NET.rmAsked = false; netSend({ t: 'rematch-no' }); };
 $('btnResMenu').onclick = toMenu;
 $('btnResume').onclick = togglePause;
 $('btnPauseMenu').onclick = () => { if (G.paused) togglePause(); toMenu(); };
@@ -1781,7 +1789,7 @@ function netAttach(c) {
     if (NET.conn !== c) return;
     const racing = G.mode === 3 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing');
     if (racing) { showBanner('គូប្រជែងចាកចេញ', 'OPPONENT LEFT'); setTimeout(toMenu, 1800); }
-    else if (G.state === 'results') { NET.conn = null; NET.ready = false; $('btnAgain').classList.add('hidden'); }
+    else if (G.state === 'results') { NET.conn = null; NET.ready = false; $('rematch').classList.add('hidden'); $('btnAgain').classList.add('hidden'); }
     else { netClose(); refreshMenu(); netStatus('Disconnected.', 'err'); }
   };
   c.on('close', gone); c.on('error', gone);
@@ -1823,7 +1831,12 @@ function hostStart() {
 function netOnData(m) {
   if (!m) return;
   if (m.t === 'start' && NET.role === 'guest' && DIFFS[m.diff]) { G.diffKey = m.diff; startRace(); }
-  else if (m.t === 'rematch' && NET.role === 'host' && G.state === 'results') hostStart();
+  else if (m.t === 'rematch' && G.state === 'results') {
+    if (NET.rmPending) rematchAccept();                 // both asked at once: just go
+    else { NET.rmAsked = true; $('rematch').classList.remove('hidden'); }
+  }
+  else if (m.t === 'rematch-ok' && NET.role === 'host' && G.state === 'results') hostStart();
+  else if (m.t === 'rematch-no') { NET.rmPending = false; $('btnAgain').querySelector('i').textContent = 'Opponent declined'; }
   else if (m.t === 's') NET.rx = Object.assign(m, { at: G.clock });
 }
 function netState(b) { return { x: b.x, v: b.v, sy: b.sync, cb: b.combo, mc: b.maxCombo, bt: b.boostT, sc: b.score, p: b.stats.p, g: b.stats.g, m: b.stats.m, f: b.finished ? 1 : 0, ft: b.finishT }; }
