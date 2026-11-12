@@ -696,7 +696,9 @@ const _ik = { d: new THREE.Vector3(), dir: new THREE.Vector3(), perp: new THREE.
 function ik2(base, target, l1, l2, pole, elbow, wrist) {
   const d = _ik.d.subVectors(target, base); let len = d.length(); if (len < 1e-4) { d.set(0, -1, 0); len = 1e-4; }
   const dir = _ik.dir.copy(d).multiplyScalar(1 / len);
-  const reach = clamp(len, Math.abs(l1 - l2) + 0.02, l1 + l2 - 0.003);
+  // soft limit near full extension: a hard clamp makes the elbow/knee pop (sqrt singularity) when the target hovers at max reach
+  const rmax = l1 + l2 - 0.012, r0 = rmax * 0.8, rmin = Math.abs(l1 - l2) + 0.02;
+  const reach = Math.max(rmin, len <= r0 ? len : r0 + (rmax - r0) * Math.tanh((len - r0) / (rmax - r0)));
   wrist.copy(base).addScaledVector(dir, reach);
   const a = (l1 * l1 - l2 * l2 + reach * reach) / (2 * reach), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
   const perp = _ik.perp.copy(pole).addScaledVector(dir, -pole.dot(dir)); if (perp.lengthSq() < 1e-6) perp.set(0, 0, 1); perp.normalize();
@@ -724,13 +726,14 @@ function makeApsara(styleIdx) {
   const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.36, 0.78, 16, 1, true), goldL); skirt.position.y = -0.38; skirt.scale.set(0.9, 1, 1.05); pelvis.add(skirt);
   const hem = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.022, 5, 18), GOLD); hem.position.y = -0.77; hem.rotation.x = PI / 2; hem.scale.set(0.9, 1.05, 1); pelvis.add(hem);
   mesh(GEO.cyl, GOLD, pelvis, 0, 0.02, 0, 0.2, 0.07, 0.22);
-  const drape = mesh(GEO.box, goldL, pelvis, 0.25, -0.35, 0, 0.03, 0.65, 0.24); // front panel
   // legs
   const legG = new THREE.CylinderGeometry(0.07, 0.055, 1, 8);
   const mk = (g, m) => { const x = new THREE.Mesh(g, m); root.add(x); return x; };
   const thS = mk(legG, gold2), shS = mk(legG, gold2), thR = mk(legG, gold2), shR = mk(legG, gold2);
   const footS = mesh(GEO.sph, gold2, root, 0, 0, 0, 0.14, 0.05, 0.07), footR = mesh(GEO.sph, gold2, root, 0, 0, 0, 0.06, 0.14, 0.07);
   const ankS = mesh(GEO.cyl, GOLD, root, 0, 0, 0, 0.065, 0.04, 0.065), ankR = mesh(GEO.cyl, GOLD, root, 0, 0, 0, 0.06, 0.04, 0.06);
+  // the raised back leg read as a 'tail' behind the dancer, so it is hidden (she stands on one leg under the skirt)
+  for (const o of [thR, shR, footR, ankR]) o.visible = false;
   // torso
   const torso = new THREE.Group(); root.add(torso);
   mesh(GEO.box, gold2, torso, 0, 0.3, 0, 0.24, 0.5, 0.34);
@@ -742,25 +745,46 @@ function makeApsara(styleIdx) {
   mesh(GEO.cyl, skin, head, 0, 0.05, 0, 0.05, 0.12, 0.05);
   mesh(GEO.sph, skin, head, 0.02, 0.2, 0, 0.16, 0.18, 0.15);
   mesh(GEO.sph, hairM, head, -0.07, 0.24, 0, 0.14, 0.15, 0.15);
+  // face (looks toward +x, the direction of travel)
+  const dark = M(0x120a06), iris = M(0x5a2a18), lipM = M(0xc2283a), blush = M(0xe88a80);
+  for (const z of [-1, 1]) {
+    mesh(GEO.sph, white, head, 0.145, 0.22, z * 0.062, 0.03, 0.03, 0.04);            // big almond eyes
+    mesh(GEO.sph, iris, head, 0.168, 0.22, z * 0.062, 0.018, 0.024, 0.026);
+    mesh(GEO.sph, dark, head, 0.178, 0.22, z * 0.062, 0.01, 0.014, 0.014);
+    const br = mesh(GEO.box, dark, head, 0.15, 0.275, z * 0.066, 0.012, 0.01, 0.075); br.rotation.x = -z * 0.3;  // thin arched brows
+    mesh(GEO.sph, blush, head, 0.138, 0.15, z * 0.095, 0.02, 0.025, 0.035);
+    // flared golden crown wings beside the face
+    const w = mesh(GEO.cone, GOLD, head, 0.0, 0.34, z * 0.2, 0.09, 0.2, 0.05); w.rotation.x = z * 0.7;
+    // teardrop earrings
+    mesh(GEO.sph, GOLD, head, 0.0, 0.11, z * 0.152, 0.025, 0.025, 0.025);
+    const er = mesh(GEO.cone, GOLD, head, 0.0, 0.03, z * 0.152, 0.035, 0.1, 0.035); er.rotation.z = PI;
+  }
+  // black hairline band under the crown, front only
+  mesh(GEO.sph, hairM, head, 0.055, 0.295, 0, 0.125, 0.04, 0.15);
+  // golden collar necklace with a pendant
+  mesh(GEO.cyl, GOLD, head, 0, -0.02, 0, 0.17, 0.025, 0.2);
+  const pend = mesh(GEO.cone, GOLD, head, 0.14, -0.1, 0, 0.05, 0.12, 0.05); pend.rotation.z = PI;
+  mesh(GEO.sph, skin, head, 0.178, 0.185, 0, 0.03, 0.04, 0.03);
+  mesh(GEO.sph, lipM, head, 0.158, 0.125, 0, 0.022, 0.016, 0.05);
   mesh(GEO.cyl, GOLD, head, 0, 0.33, 0, 0.18, 0.09, 0.18);
   mesh(GEO.cone, GOLD, head, 0, 0.54, 0, 0.13, 0.36, 0.13);
   mesh(GEO.cone, GOLD, head, 0, 0.82, 0, 0.085, 0.32, 0.085);
   mesh(GEO.cone, GOLD, head, 0, 1.08, 0.0, 0.05, 0.28, 0.05);
   mesh(GEO.sph, white, head, 0.1, 0.22, 0.16, 0.065, 0.065, 0.065);
   // flowing scarf (two segments that lag each other)
-  const sash1 = new THREE.Group(); sash1.position.set(-0.1, 0.5, 0.0); torso.add(sash1);
-  mesh(GEO.box, goldL, sash1, -0.25, 0, 0, 0.5, 0.02, 0.2);
-  const sash2 = new THREE.Group(); sash2.position.set(-0.5, 0, 0); sash1.add(sash2);
-  mesh(GEO.box, goldL, sash2, -0.22, 0, 0, 0.44, 0.02, 0.18);
   // arms
   const armG = new THREE.CylinderGeometry(0.055, 0.045, 1, 8);
   const arm = () => {
     const up = mk(armG, skin), fo = mk(armG, skin), hand = new THREE.Group(); root.add(hand);
     mesh(GEO.sph, skin, hand, 0, 0.05, 0, 0.045, 0.075, 0.025);
-    const f = mesh(GEO.cone, skin, hand, 0, 0.14, 0, 0.022, 0.1, 0.022); f.rotation.x = 0.5;   // curled fingers
-    const f2 = mesh(GEO.cone, skin, hand, 0, 0.11, 0.03, 0.02, 0.08, 0.02); f2.rotation.z = 0.5;
+    const fing = new THREE.Group(); fing.position.y = 0.09; hand.add(fing);   // fingers curl/flick as one fan
+    for (let k = 0; k < 4; k++) {
+      const z = (k - 1.5) * 0.026, len = k === 1 || k === 2 ? 0.11 : 0.09;
+      const f = mesh(GEO.cone, skin, fing, 0, len / 2, z, 0.016, len, 0.016); f.rotation.x = z * 2.2;
+    }
+    const thumb = mesh(GEO.cone, skin, hand, 0.03, 0.08, 0, 0.018, 0.08, 0.018); thumb.rotation.z = -0.6;
     mesh(GEO.cyl, GOLD, hand, 0, 0.0, 0, 0.06, 0.035, 0.06);   // bracelet
-    return { up, fo, hand };
+    return { up, fo, hand, fing };
   };
   const armR = arm(), armL = arm();
 
@@ -768,15 +792,21 @@ function makeApsara(styleIdx) {
   const UPv = new THREE.Vector3(0, 1, 0);
   const lerpV = (o, a, b, t) => o.set(lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t));
   const hiR = V(), loR = V(), hiL = V(), loL = V();
-  let wrist = 0;
+  const wrist = { f: 0 }; let curPh = 0;
 
-  function doArm(A, shoulder, hand, pole) {
+  const we = new THREE.Euler();
+  function doArm(A, shoulder, hand, pole, sd) {
     ik2(shoulder, hand, 0.31, 0.3, pole, T.elb, T.wr);
     aimV(A.up, shoulder, T.elb); aimV(A.fo, T.elb, T.wr);
     A.hand.position.copy(T.wr);
     T.p.subVectors(T.wr, T.elb).normalize();
     A.hand.quaternion.setFromUnitVectors(UPv, T.p);
-    wq.setFromAxisAngle(WX, wrist); A.hand.quaternion.multiply(wq);
+    // graceful wrist: flex, side-to-side sweep and forearm twist, each lagging the arm (follow-through);
+    // the two hands mirror each other with a half-beat offset
+    const pp = curPh + (sd < 0 ? 0.9 : 0);
+    we.set(wrist.f + 0.3 * Math.sin(pp - 1.0), 0.55 * sd * Math.sin(pp - 0.6), 0.35 * Math.sin(pp - 1.6));
+    wq.setFromEuler(we); A.hand.quaternion.multiply(wq);
+    A.fing.rotation.x = -0.15 + 0.7 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers bloom open then curl back
   }
 
   // low-pass filtered state: gives follow-through, removes any jerks
@@ -785,15 +815,12 @@ function makeApsara(styleIdx) {
   const sm = (cur, t, k, dt) => cur.lerp(t, 1 - Math.exp(-k * dt));
   function update(ph, lift, dt) {
     dt = Math.min(dt === undefined ? 0.016 : dt, 0.05);
-    const s1 = Math.sin(ph), c1 = Math.cos(ph), sh = Math.sin(ph * 0.5), s2 = Math.sin(ph * 2);
-    const hipY = 0.87 - st.flex * (1 - Math.cos(2 * ph)), hipZ = st.sway * s1;
-    pelvis.position.set(0, hipY, hipZ); sm(F.pe, tgt.set(0.1 * s1, st.twist * 0.5 * sh, -0.04 * s2), 10, dt); sm(F.pe2, F.pe, 10, dt); sm(F.pe3, F.pe2, 10, dt); pelvis.rotation.set(F.pe3.x, F.pe3.y, F.pe3.z);
-    torso.position.set(0, hipY, hipZ); sm(F.tr, tgt.set(-0.11 * s1, st.twist * sh, -0.07 + 0.05 * Math.sin(2 * ph - 0.5)), 9, dt); sm(F.tr2, F.tr, 9, dt); sm(F.tr3, F.tr2, 9, dt); torso.rotation.set(F.tr3.x, F.tr3.y, F.tr3.z);
+    const s1 = Math.sin(ph), c1 = Math.cos(ph), sh = Math.sin(ph * 0.5);
+    const hipY = 0.87 - st.flex * (1 - Math.cos(ph)), hipZ = st.sway * s1;
+    pelvis.position.set(0, hipY, hipZ); sm(F.pe, tgt.set(0.1 * s1, st.twist * 0.5 * sh, -0.04 * s1), 6, dt); sm(F.pe2, F.pe, 6, dt); sm(F.pe3, F.pe2, 6, dt); pelvis.rotation.set(F.pe3.x, F.pe3.y, F.pe3.z);
+    torso.position.set(0, hipY, hipZ); sm(F.tr, tgt.set(-0.11 * s1, st.twist * sh, -0.07 + 0.05 * Math.sin(ph - 0.5)), 6, dt); sm(F.tr2, F.tr, 6, dt); sm(F.tr3, F.tr2, 6, dt); torso.rotation.set(F.tr3.x, F.tr3.y, F.tr3.z);
     torso.updateMatrix();
     sm(F.hd, tgt.set(0.1 * Math.sin(ph + 0.8), 0.32 * Math.sin(ph * 0.5 - 0.6), -st.tilt * Math.sin(ph + 0.4)), 5, dt); sm(F.hd2, F.hd, 5, dt); head.rotation.set(F.hd2.x, F.hd2.y, F.hd2.z);
-    sm(F.s1, tgt.set(0.15 * Math.sin(ph * 1.3), 0.35 * Math.sin(ph + 1), 0.35 + 0.3 * Math.sin(ph * 1.3 - 0.5)), 3, dt); sash1.rotation.set(F.s1.x, F.s1.y, F.s1.z);
-    sm(F.s2, tgt.set(0, 0.3 * Math.sin(ph + 2), 0.35 * Math.sin(ph * 1.3 - 1.6)), 2.2, dt); sash2.rotation.set(F.s2.x, F.s2.y, F.s2.z);
-    drape.rotation.z = 0.12 * Math.sin(ph + 0.5); drape.rotation.x = 0.1 * s1;
 
     // standing leg (knee bends forward) and raised back leg (knee points down/forward)
     T.a.set(0, hipY - 0.02, hipZ - 0.05); T.b.set(0.03, 0.07, -0.02);
@@ -801,7 +828,7 @@ function makeApsara(styleIdx) {
     aimV(thS, T.a, T.elb); aimV(shS, T.elb, T.wr);
     footS.position.set(T.wr.x + 0.06, T.wr.y - 0.02, T.wr.z); ankS.position.copy(T.wr); ankS.position.y += 0.03;
     T.a.set(0, hipY - 0.02, hipZ + 0.06); T.b.set(-st.back + 0.07 * s1, 0.64 + st.kick * Math.sin(ph + 0.6) + lift * 0.2, 0.11);
-    sm(F.an, T.b, 8, dt); sm(F.an2, F.an, 8, dt); sm(F.an3, F.an2, 8, dt); T.b.copy(F.an3);
+    sm(F.an, T.b, 6, dt); sm(F.an2, F.an, 6, dt); sm(F.an3, F.an2, 6, dt); T.b.copy(F.an3);
     ik2(T.a, T.b, 0.46, 0.46, V(0.45, -1, 0), T.elb, T.wr);
     aimV(thR, T.a, T.elb); aimV(shR, T.elb, T.wr);
     T.p.subVectors(T.wr, T.elb).normalize();
@@ -809,7 +836,7 @@ function makeApsara(styleIdx) {
     ankR.position.copy(T.wr); ankR.quaternion.copy(footR.quaternion);
 
     // arm choreography differs per style
-    const m = smooth(0.5 + 0.5 * sh), L = lift * 0.25;
+    const m = 0.5 + 0.5 * sh, L = lift * 0.25;
     if (st.mode === 0) {          // classic: one high & curved, one low & open, then swap
       hiR.set(0.2 + 0.14 * Math.sin(ph + 0.5), 1.95 + 0.1 * Math.sin(ph + 1.2) + L, 0.3 + 0.12 * Math.sin(ph * 0.5 + 0.5));
       loR.set(0.12 + 0.08 * s1, 1.38 + 0.08 * Math.sin(ph), 0.66 + 0.06 * c1);
@@ -820,8 +847,8 @@ function makeApsara(styleIdx) {
       T.hR.set(0.15 + 0.08 * c1, 1.7 + 0.32 * o + L, 0.22 + 0.3 * o);
       T.hL.set(0.15 + 0.08 * c1, 1.7 + 0.32 * o + L, -0.22 - 0.3 * o);
     } else if (st.mode === 2) {   // wings: arms spread wide and flutter
-      T.hR.set(0.05 + 0.1 * c1, 1.62 + 0.2 * s1 + L, 0.72 + 0.1 * Math.sin(ph * 2));
-      T.hL.set(0.05 - 0.1 * c1, 1.62 - 0.2 * s1 + L, -0.72 - 0.1 * Math.sin(ph * 2));
+      T.hR.set(0.05 + 0.1 * c1, 1.62 + 0.2 * s1 + L, 0.72 + 0.1 * Math.sin(ph));
+      T.hL.set(0.05 - 0.1 * c1, 1.62 - 0.2 * s1 + L, -0.72 - 0.1 * Math.sin(ph));
     } else if (st.mode === 3) {   // circling hands: right traces a loop overhead, left a smaller loop in front
       T.hR.set(0.2 + 0.2 * c1, 1.88 + 0.2 * s1 + L, 0.3);
       T.hL.set(0.4 + 0.12 * Math.cos(ph + 2), 1.45 + 0.12 * Math.sin(ph + 2), -0.34);
@@ -829,12 +856,12 @@ function makeApsara(styleIdx) {
       const o = 0.5 + 0.5 * s1;
       T.hR.set(0.4, 1.45 + 0.35 * o + L, 0.07); T.hL.set(0.4, 1.45 + 0.35 * o + L, -0.07);
     }
-    sm(F.hR, T.hR, 8, dt); sm(F.hR2, F.hR, 8, dt); sm(F.hR3, F.hR2, 8, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 8, dt); sm(F.hL2, F.hL, 8, dt); sm(F.hL3, F.hL2, 8, dt); T.hL.copy(F.hL3);
-    wrist = 0.45 + 0.35 * Math.sin(ph + 0.6);
+    sm(F.hR, T.hR, 6, dt); sm(F.hR2, F.hR, 6, dt); sm(F.hR3, F.hR2, 6, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 6, dt); sm(F.hL2, F.hL, 6, dt); sm(F.hL3, F.hL2, 6, dt); T.hL.copy(F.hL3);
+    curPh = ph; wrist.f += ((0.45 + 0.35 * Math.sin(ph + 0.6)) - wrist.f) * (1 - Math.exp(-6 * dt));
     T.shS.set(0, 0.54, 0.19).applyMatrix4(torso.matrix);
-    doArm(armR, T.shS.clone(), T.hR.clone(), V(-0.2, -0.7, 1));
+    doArm(armR, T.shS.clone(), T.hR.clone(), V(-0.2, -0.7, 1), 1);
     T.shS.set(0, 0.54, -0.19).applyMatrix4(torso.matrix);
-    doArm(armL, T.shS.clone(), T.hL.clone(), V(-0.2, -0.7, -1));
+    doArm(armL, T.shS.clone(), T.hL.clone(), V(-0.2, -0.7, -1), -1);
   }
   update(0, 0, 10);
   return { root, update, speed: st.speed };
@@ -1480,7 +1507,7 @@ function updateVisuals(dt, wall) {
     // slow, flowing dance (independent of the fast drum beat) with eased boost lift
     const boost = b.boostT > 0 || (b.finished && G.state !== 'menu');
     b.liftS = (b.liftS || 0) + ((boost ? 1 : 0) - (b.liftS || 0)) * Math.min(1, dt * 3);
-    const ph = tw * TAU / 3.9 * b.apsara.speed + b.id * 0.7;
+    const ph = tw * TAU / 5.6 * b.apsara.speed + b.id * 0.7;
     b.cap.position.y = 0.93 + b.liftS * 0.04;
     b.apsara.update(ph, b.liftS, dt);
     // steersman sweeps the steering oar
