@@ -529,6 +529,7 @@ function buildCourse() {
   }));
   buoys.frustumCulled = false; scene.add(buoys);
 
+  let bandHull = null;
   const gate = (x, kh, en, finish, band) => {
     const g = new THREE.Group(); g.position.x = x; scene.add(g); gates.push(g);
     const topG = new THREE.Group(); g.add(topG); g.userData.top = topG;
@@ -558,12 +559,17 @@ function buildCourse() {
       const redM = new THREE.MeshLambertMaterial({ color: 0xd4162d }), darkM = M(0x7d0a1c);
       const rf = canvasTex(64, 40, (c, w, h) => { c.fillStyle = '#e0283f'; c.fillRect(0, 0, w, h); });
       for (const bz of [0]) {
-        const sb = new THREE.Group(); sb.position.set(0, 0.15, bz); g.add(sb);
-        box(sb, 3.6, 0.55, 1.0, 0, 0.1, 0, redM);
-        box(sb, 3.9, 0.12, 1.15, 0, 0.42, 0, GOLD);
-        for (const sx of [-1, 1]) { const e = box(sb, 0.9, 0.5, 0.8, sx * 2.05, 0.38, 0, redM); e.rotation.z = -sx * 0.5; }
-        box(sb, 3.0, 0.08, 0.7, 0, 0.5, 0, darkM);
-        cyl(sb, 0.05, 2.6, 0, 1.7, 0, M(0xe9c477));
+        const sb = new THREE.Group(); sb.position.set(0, 0.1, bz); g.add(sb);
+        // slim dragon-boat style hull (same shape as the racing boats, scaled down) instead of a boxy block
+        bandHull = bandHull || hullGeometry();
+        const hl = new THREE.Mesh(bandHull, new THREE.MeshLambertMaterial({ color: 0xd4162d, side: THREE.DoubleSide }));
+        hl.scale.set(0.34, 0.42, 0.5); sb.add(hl);
+        const dk = new THREE.Mesh(bandHull, new THREE.MeshLambertMaterial({ color: 0x7d0a1c, side: THREE.DoubleSide }));
+        dk.scale.set(0.335, 0.4, 0.46); dk.position.y = 0.03; sb.add(dk);
+        for (const sx of [-1, 1]) {   // gilded prow and stern posts
+          const f = mesh(GEO.cone, GOLD, sb, sx * (HL * 0.34 + 0.02), 0.95, 0, 0.09, 0.4, 0.09); f.rotation.z = -sx * 0.5;
+        }
+        cyl(sb, 0.05, 2.6, 0, 1.6, 0, M(0xe9c477));
         const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagMat.clone());
         fl.material.map = rf; fl.position.set(0.05, 2.5, 0); sb.add(fl);
       }
@@ -575,23 +581,29 @@ function buildCourse() {
       g.userData.drums = [];
       for (const bz of [10, -10]) {
         const sb = new THREE.Group(); sb.position.set(0, 0.2, bz); sb.scale.setScalar(1.9); g.add(sb);
-        box(sb, 3.6, 0.55, 1.0, 0, 0.1, 0, redM);
-        box(sb, 3.9, 0.12, 1.15, 0, 0.42, 0, GOLD);
-        for (const sx of [-1, 1]) { const e = box(sb, 0.9, 0.5, 0.8, sx * 2.05, 0.38, 0, redM); e.rotation.z = -sx * 0.5; }
-        box(sb, 3.0, 0.08, 0.7, 0, 0.5, 0, darkM);
+        // slim dragon-boat style hull (same shape as the racing boats, scaled down) with a small deck
+        bandHull = bandHull || hullGeometry();
+        const hl = new THREE.Mesh(bandHull, new THREE.MeshLambertMaterial({ color: 0xd4162d, side: THREE.DoubleSide }));
+        hl.scale.set(0.34, 0.6, 0.6); sb.add(hl);
+        const dk = new THREE.Mesh(bandHull, new THREE.MeshLambertMaterial({ color: 0x7d0a1c, side: THREE.DoubleSide }));
+        dk.scale.set(0.335, 0.57, 0.56); dk.position.y = 0.03; sb.add(dk);
+        box(sb, 2.2, 0.06, 0.8, -0.1, 0.1, 0, M(0xa9774a));   // floor inside the hull: the drummer stands on it, below the gunwale
+        for (const sx of [-1, 1]) {
+          const f = mesh(GEO.cone, GOLD, sb, sx * (HL * 0.34 + 0.02), 1.1, 0, 0.09, 0.4, 0.09); f.rotation.z = -sx * 0.5;
+        }
         cyl(sb, 0.05, 2.6, 1.6, 1.8, 0, stickM);
         const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagMat.clone());
         fl.material.map = rf; fl.position.set(1.65, 2.6, 0); sb.add(fl);
         // drum
-        const dr = new THREE.Group(); dr.position.set(-0.55, 0.55, 0); sb.add(dr);
+        const dr = new THREE.Group(); dr.position.set(-0.55, 0.13, 0); sb.add(dr);
         cyl(dr, 0.34, 0.5, 0, 0.27, 0, redM);
         cyl(dr, 0.37, 0.06, 0, 0.04, 0, GOLD); cyl(dr, 0.37, 0.06, 0, 0.5, 0, GOLD);
         cyl(dr, 0.31, 0.03, 0, 0.54, 0, M(0xf3e2b8));
         // drummer (behind the drum, facing it)
-        const pp = new THREE.Group(); pp.position.set(0.15, 0.55, 0); sb.add(pp);
+        const pp = new THREE.Group(); pp.position.set(0.15, 0.13, 0); sb.add(pp);
         box(pp, 0.3, 0.5, 0.36, 0, 0.45, 0, M(0xe0283f));
-        box(pp, 0.28, 0.28, 0.28, 0, 0.84, 0, skinM);
-        box(pp, 0.3, 0.1, 0.3, 0, 0.98, 0, hairM);
+        mesh(GEO.sph, skinM, pp, 0, 0.88, 0, 0.16, 0.17, 0.15);   // round head
+        mesh(GEO.sph, hairM, pp, -0.015, 0.93, 0, 0.17, 0.15, 0.16);   // hair cap
         for (const lz of [-0.1, 0.1]) {   // legs + feet (feet point toward the drum)
           box(pp, 0.13, 0.24, 0.14, 0, 0.14, lz, M(0x2a2a35));
           box(pp, 0.26, 0.07, 0.15, -0.06, 0.035, lz, M(0x1a1a1a));
@@ -707,11 +719,11 @@ function ik2(base, target, l1, l2, pole, elbow, wrist) {
 function aimV(m, a, b) { aim(m, a.x, a.y, a.z, b.x, b.y, b.z); }
 
 const APSARA_STYLES = [
-  { mode: 0, speed: 1.0, sway: 0.05, twist: 0.45, kick: 0.12, back: 0.60, flex: 0.02, tilt: 0.14 },   // classic: arms trade high / low
-  { mode: 1, speed: 0.8, sway: 0.03, twist: 0.25, kick: 0.07, back: 0.55, flex: 0.015, tilt: 0.10 },  // lotus: both arms rise and bloom
-  { mode: 2, speed: 1.3, sway: 0.07, twist: 0.65, kick: 0.2,  back: 0.66, flex: 0.035, tilt: 0.18 },  // wings: arms spread wide, lively turns
-  { mode: 3, speed: 1.1, sway: 0.09, twist: 0.35, kick: 0.15, back: 0.62, flex: 0.025, tilt: 0.22 },  // circling hands
-  { mode: 4, speed: 0.9, sway: 0.04, twist: 0.55, kick: 0.1,  back: 0.5,  flex: 0.03, tilt: 0.30 }    // greeting: hands together in front
+  { mode: 0, speed: 1.0, sway: 0.03, twist: 0.2475, kick: 0.072, back: 0.60, flex: 0.014, tilt: 0.077 },   // classic: arms trade high / low
+  { mode: 1, speed: 0.8, sway: 0.018, twist: 0.1375, kick: 0.042, back: 0.55, flex: 0.0105, tilt: 0.055 },  // lotus: both arms rise and bloom
+  { mode: 2, speed: 1.3, sway: 0.042, twist: 0.3575, kick: 0.12,  back: 0.66, flex: 0.0245, tilt: 0.099 },  // wings: arms spread wide, lively turns
+  { mode: 3, speed: 1.1, sway: 0.054, twist: 0.1925, kick: 0.09, back: 0.62, flex: 0.0175, tilt: 0.121 },  // circling hands
+  { mode: 4, speed: 0.9, sway: 0.024, twist: 0.3025, kick: 0.06,  back: 0.5,  flex: 0.021, tilt: 0.165 }    // greeting: hands together in front
 ];
 function makeApsara(styleIdx) {
   const st = APSARA_STYLES[styleIdx % APSARA_STYLES.length];
@@ -804,9 +816,9 @@ function makeApsara(styleIdx) {
     // graceful wrist: flex, side-to-side sweep and forearm twist, each lagging the arm (follow-through);
     // the two hands mirror each other with a half-beat offset
     const pp = curPh + (sd < 0 ? 0.9 : 0);
-    we.set(wrist.f + 0.3 * Math.sin(pp - 1.0), 0.55 * sd * Math.sin(pp - 0.6), 0.35 * Math.sin(pp - 1.6));
+    we.set(0.1, 0, 0.3 * Math.sin(pp - 0.9))   // wrists flex forwards/backwards only;
     wq.setFromEuler(we); A.hand.quaternion.multiply(wq);
-    A.fing.rotation.x = -0.15 + 0.7 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers bloom open then curl back
+    A.fing.rotation.x = -0.1 + 0.45 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers bloom open then curl back
   }
 
   // low-pass filtered state: gives follow-through, removes any jerks
@@ -817,10 +829,10 @@ function makeApsara(styleIdx) {
     dt = Math.min(dt === undefined ? 0.016 : dt, 0.05);
     const s1 = Math.sin(ph), c1 = Math.cos(ph), sh = Math.sin(ph * 0.5);
     const hipY = 0.87 - st.flex * (1 - Math.cos(ph)), hipZ = st.sway * s1;
-    pelvis.position.set(0, hipY, hipZ); sm(F.pe, tgt.set(0.1 * s1, st.twist * 0.5 * sh, -0.04 * s1), 6, dt); sm(F.pe2, F.pe, 6, dt); sm(F.pe3, F.pe2, 6, dt); pelvis.rotation.set(F.pe3.x, F.pe3.y, F.pe3.z);
-    torso.position.set(0, hipY, hipZ); sm(F.tr, tgt.set(-0.11 * s1, st.twist * sh, -0.07 + 0.05 * Math.sin(ph - 0.5)), 6, dt); sm(F.tr2, F.tr, 6, dt); sm(F.tr3, F.tr2, 6, dt); torso.rotation.set(F.tr3.x, F.tr3.y, F.tr3.z);
+    pelvis.position.set(0, hipY, hipZ); sm(F.pe, tgt.set(0.05 * s1, st.twist * 0.5 * sh, -0.025 * s1), 6, dt); sm(F.pe2, F.pe, 6, dt); sm(F.pe3, F.pe2, 6, dt); pelvis.rotation.set(F.pe3.x, F.pe3.y, F.pe3.z);
+    torso.position.set(0, hipY, hipZ); sm(F.tr, tgt.set(-0.06 * s1, st.twist * sh, -0.05 + 0.03 * Math.sin(ph - 0.5)), 6, dt); sm(F.tr2, F.tr, 6, dt); sm(F.tr3, F.tr2, 6, dt); torso.rotation.set(F.tr3.x, F.tr3.y, F.tr3.z);
     torso.updateMatrix();
-    sm(F.hd, tgt.set(0.1 * Math.sin(ph + 0.8), 0.32 * Math.sin(ph * 0.5 - 0.6), -st.tilt * Math.sin(ph + 0.4)), 5, dt); sm(F.hd2, F.hd, 5, dt); head.rotation.set(F.hd2.x, F.hd2.y, F.hd2.z);
+    sm(F.hd, tgt.set(0.05 * Math.sin(ph + 0.8), 0.2 * Math.sin(ph * 0.5 - 0.6), -st.tilt * Math.sin(ph + 0.4)), 5, dt); sm(F.hd2, F.hd, 5, dt); head.rotation.set(F.hd2.x, F.hd2.y, F.hd2.z);
 
     // standing leg (knee bends forward) and raised back leg (knee points down/forward)
     T.a.set(0, hipY - 0.02, hipZ - 0.05); T.b.set(0.03, 0.07, -0.02);
@@ -837,27 +849,26 @@ function makeApsara(styleIdx) {
 
     // arm choreography differs per style
     const m = 0.5 + 0.5 * sh, L = lift * 0.25;
-    if (st.mode === 0) {          // classic: one high & curved, one low & open, then swap
-      hiR.set(0.2 + 0.14 * Math.sin(ph + 0.5), 1.95 + 0.1 * Math.sin(ph + 1.2) + L, 0.3 + 0.12 * Math.sin(ph * 0.5 + 0.5));
-      loR.set(0.12 + 0.08 * s1, 1.38 + 0.08 * Math.sin(ph), 0.66 + 0.06 * c1);
-      hiL.set(hiR.x, hiR.y, -hiR.z); loL.set(loR.x, loR.y, -loR.z);
-      lerpV(T.hR, hiR, loR, m); lerpV(T.hL, loL, hiL, m);
-    } else if (st.mode === 1) {   // lotus: both hands rise above the head and open like petals
+    // every style keeps each hand in a fixed side plane (constant z): the hands only travel forwards <-> backwards (x), with a little rise and fall
+    if (st.mode === 0) {          // classic: hands trade forwards / backwards in opposition
+      T.hR.set(0.2 + 0.25 * s1, 1.74 + 0.07 * c1 + L, 0.32);
+      T.hL.set(0.2 - 0.25 * s1, 1.74 - 0.07 * c1 + L, -0.32);
+    } else if (st.mode === 1) {   // lotus: both hands rise as they reach forwards, sink as they draw back
       const o = 0.5 + 0.5 * s1;
-      T.hR.set(0.15 + 0.08 * c1, 1.7 + 0.32 * o + L, 0.22 + 0.3 * o);
-      T.hL.set(0.15 + 0.08 * c1, 1.7 + 0.32 * o + L, -0.22 - 0.3 * o);
-    } else if (st.mode === 2) {   // wings: arms spread wide and flutter
-      T.hR.set(0.05 + 0.1 * c1, 1.62 + 0.2 * s1 + L, 0.72 + 0.1 * Math.sin(ph));
-      T.hL.set(0.05 - 0.1 * c1, 1.62 - 0.2 * s1 + L, -0.72 - 0.1 * Math.sin(ph));
-    } else if (st.mode === 3) {   // circling hands: right traces a loop overhead, left a smaller loop in front
-      T.hR.set(0.2 + 0.2 * c1, 1.88 + 0.2 * s1 + L, 0.3);
-      T.hL.set(0.4 + 0.12 * Math.cos(ph + 2), 1.45 + 0.12 * Math.sin(ph + 2), -0.34);
-    } else {                      // greeting: palms together in front, rising and falling
+      T.hR.set(0.05 + 0.4 * o, 1.62 + 0.14 * o + L, 0.3);
+      T.hL.set(0.05 + 0.4 * o, 1.62 + 0.14 * o + L, -0.3);
+    } else if (st.mode === 2) {   // wings: arms held wide, sweeping forwards / backwards in a gentle ripple
+      T.hR.set(0.12 + 0.24 * s1, 1.5 + 0.06 * c1 + L, 0.55);
+      T.hL.set(0.12 + 0.24 * Math.sin(ph + 0.7), 1.5 + 0.06 * Math.cos(ph + 0.7) + L, -0.55);
+    } else if (st.mode === 3) {   // circling hands: loops in the vertical forward/back plane, never sideways
+      T.hR.set(0.2 + 0.2 * c1, 1.7 + 0.12 * s1 + L, 0.3);
+      T.hL.set(0.22 + 0.2 * Math.cos(ph + 2), 1.55 + 0.1 * Math.sin(ph + 2), -0.3);
+    } else {                      // greeting: palms together in front, drawing forwards and back
       const o = 0.5 + 0.5 * s1;
-      T.hR.set(0.4, 1.45 + 0.35 * o + L, 0.07); T.hL.set(0.4, 1.45 + 0.35 * o + L, -0.07);
+      T.hR.set(0.12 + 0.34 * o, 1.5 + 0.12 * o + L, 0.08); T.hL.set(0.12 + 0.34 * o, 1.5 + 0.12 * o + L, -0.08);
     }
-    sm(F.hR, T.hR, 6, dt); sm(F.hR2, F.hR, 6, dt); sm(F.hR3, F.hR2, 6, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 6, dt); sm(F.hL2, F.hL, 6, dt); sm(F.hL3, F.hL2, 6, dt); T.hL.copy(F.hL3);
-    curPh = ph; wrist.f += ((0.45 + 0.35 * Math.sin(ph + 0.6)) - wrist.f) * (1 - Math.exp(-6 * dt));
+    sm(F.hR, T.hR, 4, dt); sm(F.hR2, F.hR, 4, dt); sm(F.hR3, F.hR2, 4, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 4, dt); sm(F.hL2, F.hL, 4, dt); sm(F.hL3, F.hL2, 4, dt); T.hL.copy(F.hL3);
+    curPh = ph; wrist.f += ((0.4 + 0.2 * Math.sin(ph + 0.6)) - wrist.f) * (1 - Math.exp(-6 * dt));
     T.shS.set(0, 0.54, 0.19).applyMatrix4(torso.matrix);
     doArm(armR, T.shS.clone(), T.hR.clone(), V(-0.2, -0.7, 1), 1);
     T.shS.set(0, 0.54, -0.19).applyMatrix4(torso.matrix);
@@ -1516,7 +1527,7 @@ function updateVisuals(dt, wall) {
     // slow, flowing dance (independent of the fast drum beat) with eased boost lift
     const boost = b.boostT > 0 || (b.finished && G.state !== 'menu');
     b.liftS = (b.liftS || 0) + ((boost ? 1 : 0) - (b.liftS || 0)) * Math.min(1, dt * 3);
-    const ph = tw * TAU / 5.6 * b.apsara.speed + b.id * 0.7;
+    const ph = tw * TAU / 7.5 * b.apsara.speed + b.id * 0.7;
     b.cap.position.y = 0.93 + b.liftS * 0.04;
     b.apsara.update(ph, b.liftS, dt);
     // steersman sweeps the steering oar
