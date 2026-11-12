@@ -131,3 +131,18 @@ kbd{display:inline-block;min-width:24px;padding:2px 6px;margin:1px;border-radius
 #track .tick{position:absolute;top:-8px;width:0}
 #track .tick i{position:absolute;left:-1.5px;top:0;width:3px;height:22px;background:#6fa8ff;border-radius:2px}
 #track .tick span{position:absolute;left:-9px;top:22px;width:18px;text-align:center;font-size:10px;font-weight:700;color:#9cc4ff}
+
+/* ---------- online room ---------- */
+#onlineBox button.big{margin-top:6px}
+.orline{margin:10px 0 6px;font-size:12px;opacity:.75}
+.joinrow{display:flex;gap:8px;align-items:stretch}
+.joinrow input{flex:1;min-width:0;text-align:center;text-transform:uppercase;letter-spacing:.35em;font-size:22px;font-weight:700;font-family:var(--kh);
+  border-radius:14px;border:2px solid rgba(255,207,63,.5);background:rgba(255,255,255,.08);color:var(--cream);outline:none}
+.joinrow input:focus{border-color:var(--gold)}
+.joinrow .big{flex:0 0 38%;margin-top:0}
+.roomcode{display:flex;align-items:center;justify-content:center;gap:10px}
+.roomcode b{font-size:38px;letter-spacing:.3em;padding-left:.3em;color:var(--gold);font-family:var(--khT),sans-serif;user-select:text;-webkit-user-select:text}
+.olstatus{margin-top:8px;min-height:20px;font-size:13.5px;line-height:1.5}
+.olstatus.ok{color:#7dffb0}.olstatus.err{color:#ff8a8a}
+#onlineBox .joinrow .big{margin-top:0;flex:0 0 36%;padding:8px 6px}
+#onlineBox .joinrow input{padding:8px 6px}

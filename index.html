@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:wght@400;600;700&family=Moul&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -43,10 +43,25 @@
       <div class="seg" id="segMode">
         <button data-mode="1" class="on"><b>អ្នកលេងម្នាក់</b><i>1 Player vs AI</i></button>
         <button data-mode="2"><b>អ្នកលេងពីរនាក់</b><i>2 Players · Local</i></button>
+        <button data-mode="3"><b>លេងអនឡាញ</b><i>Online · Room</i></button>
       </div>
     </div>
 
-    <div class="group">
+    <div class="group hidden" id="onlineBox">
+      <div id="olStart">
+        <button id="btnCreate" class="big small"><b>បង្កើតបន្ទប់</b><i>CREATE ROOM</i></button>
+        <div class="orline">ឬ · or join a friend's room</div>
+        <div class="joinrow"><input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false"><button id="btnJoin" class="big small"><b>ចូល</b><i>JOIN</i></button></div>
+      </div>
+      <div id="olRoom" class="hidden">
+        <div class="glabel">កូដបន្ទប់ <span>Room code</span></div>
+        <div class="roomcode"><b id="roomCode">—</b><button id="btnCopy" class="link">Copy</button></div>
+        <button id="btnLeave" class="link">ចាកចេញ · Leave room</button>
+      </div>
+      <div id="olStatus" class="olstatus"></div>
+    </div>
+
+    <div class="group" id="grpDiff">
       <div class="glabel">កម្រិត <span>Difficulty</span></div>
       <div class="seg" id="segDiff">
         <button data-diff="easy"><b>ងាយ</b><i>Easy</i></button>
@@ -107,6 +122,7 @@
 <div id="loading"><div>អុំទូក · OM TOUK</div><small>Loading…</small></div>
 
 <script src="lib/three.min.js"></script>
-<script src="js/game.js?v=27"></script>
+<script src="lib/peerjs.min.js"></script>
+<script src="js/game.js?v=29"></script>
 </body>
 </html>

@@ -1292,8 +1292,8 @@ function setupRace() {
   if (D.key === 'hard') aiSkills.reverse();   // 1v1 has a single AI: on Hard it gets the strongest skill, not the weakest
   let ai = 0;
   boats.forEach((b, i) => {
-    const human = i === 0 || (G.mode === 2 && i === 1);
-    Object.assign(b, { x: START_NOSE - BOW, z: LANES[i], v: 0, sync: 0.4, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0, human, auto: false,
+    const human = G.mode === 3 ? i === NET.myIdx : (i === 0 || (G.mode === 2 && i === 1));
+    Object.assign(b, { x: START_NOSE - BOW, z: LANES[i], v: 0, sync: 0.4, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0, human, auto: false, remote: G.mode === 3 && !human,
       player: human ? i : -1, ptr: 0, aiPtr: 0, ns: new Uint8Array(G.notes.length), stats: { p: 0, g: 0, m: 0 }, lastHit: -9, rank: 0, strokeT: 0, bandsDone: 0 });
     if (human) { G.humans.push(b); if (G.demo) { b.auto = true; b.skill = 0.9; } }
     else { b.skill = aiSkills[ai++ % aiSkills.length]; }
@@ -1301,7 +1301,8 @@ function setupRace() {
   buildPanels();
   const tr = $('track'); tr.querySelectorAll('.tick').forEach(t => t.remove());
   BANDS.forEach((bd, i) => { const t = document.createElement('div'); t.className = 'tick'; t.style.left = ((bd - START_NOSE) / (RACE_LEN - START_NOSE) * 100) + '%'; t.innerHTML = '<i></i><span>' + (i + 1) + '</span>'; tr.appendChild(t); });
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('single', G.mode === 1));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('single', G.mode !== 2));
+  NET.rx = null; NET.lastSend = 0;
   updateHud();
 }
 
@@ -1311,6 +1312,8 @@ function startRace() {
   G.state = 'countdown';
   ['menu', 'results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.remove('hidden');
+  $('btnPause').style.display = G.mode === 3 ? 'none' : '';
+  $('btnAgain').querySelector('i').textContent = 'Race again';
   camSnap = true;
 }
 
@@ -1322,8 +1325,8 @@ function finishRace() {
   let h = '<tr><th></th><th>ក្រុម TEAM</th><th>ពេលវេលា TIME</th><th>ភាពត្រឹមត្រូវ HITS</th></tr>';
   order.forEach((b, i) => {
     const tot = b.stats.p + b.stats.g + b.stats.m;
-    const who = b.human ? (G.mode === 2 ? 'អ្នកលេង ' + toKh(b.player + 1) + ' · P' + (b.player + 1) : 'អ្នក · You') : 'AI';
-    h += '<tr class="' + (b.human ? 'me' : '') + '"><td class="rk">' + toKh(i + 1) + '</td><td><span class="cc" style="background:' + b.scheme.css + '"></span>' + b.scheme.kh + '<small>' + who + '</small></td><td>' + (b.finished ? fmt(b.finishT) : 'DNF') + '</td><td>' + (b.human ? '<b>' + b.stats.p + '</b>P · ' + b.stats.g + 'G · ' + b.stats.m + 'M <small>max ×' + b.maxCombo + '</small>' : '—') + '</td></tr>';
+    const who = b.human ? (G.mode === 2 ? 'អ្នកលេង ' + toKh(b.player + 1) + ' · P' + (b.player + 1) : 'អ្នក · You') : (G.mode === 3 ? 'គូប្រជែង · Opponent' : 'AI');
+    h += '<tr class="' + (b.human ? 'me' : '') + '"><td class="rk">' + toKh(i + 1) + '</td><td><span class="cc" style="background:' + b.scheme.css + '"></span>' + b.scheme.kh + '<small>' + who + '</small></td><td>' + (b.finished ? fmt(b.finishT) : 'DNF') + '</td><td>' + ((b.human || b.remote) ? '<b>' + b.stats.p + '</b>P · ' + b.stats.g + 'G · ' + b.stats.m + 'M <small>max ×' + b.maxCombo + '</small>' : '—') + '</td></tr>';
   });
   tbl.innerHTML = h;
   const w = order[0];
@@ -1331,16 +1334,21 @@ function finishRace() {
     const hs = G.humans.slice().sort((a, b) => (a.finished ? a.finishT : 9e9 - a.x) - (b.finished ? b.finishT : 9e9 - b.x));
     $('resTitle').textContent = 'អ្នកលេង ' + toKh(hs[0].player + 1) + ' ឈ្នះ!';
     $('resSub').innerHTML = 'Player ' + (hs[0].player + 1) + ' wins the water festival!<br><span>ទី ' + toKh(hs[0].rank) + ' · place ' + hs[0].rank + '</span>';
+  } else if (G.mode === 3) {
+    const rk = G.humans[0].rank;
+    $('resTitle').textContent = rk === 1 ? 'ជ័យជម្នះ! 🏆' : 'ព្យាយាមទៀត!';
+    $('resSub').innerHTML = (rk === 1 ? 'You beat your opponent!' : 'Your opponent crossed first — race again!') + '<br><span>ទី ' + toKh(rk) + ' · you placed ' + rk + ' of 2</span>';
   } else {
     const me = G.humans[0], rk = me.rank;
     $('resTitle').textContent = rk === 1 ? 'ជ័យជម្នះ! 🏆' : rk <= 3 ? 'ល្អណាស់!' : 'ព្យាយាមទៀត!';
     $('resSub').innerHTML = (rk === 1 ? 'You won the Royal Water Festival race!' : rk <= 3 ? 'A podium finish — well rowed!' : 'Keep the rhythm and try again!') + '<br><span>ទី ' + toKh(rk) + ' · you placed ' + rk + ' of 5</span>';
   }
+  if (G.mode === 3) netSend({ t: 's', ...netState(G.humans[0]) });
   setTimeout(() => { if (G.state === 'results') { $('results').classList.remove('hidden'); $('hud').classList.add('hidden'); } }, 1600);
 }
 
 function toMenu() {
-  G.state = 'menu'; G.paused = false;
+  G.state = 'menu'; G.paused = false; netClose(); refreshMenu();
   ['results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.add('hidden'); $('menu').classList.remove('hidden');
   boats.forEach((b, i) => { Object.assign(b, { x: START_NOSE - BOW - 14 - [0, 7, 3, 10, 5][i], z: LANES[i], v: 0, sync: 0.5, human: false, finished: false, boostT: 0, combo: 0 }); });
@@ -1394,6 +1402,7 @@ function stepRace(dt) {
   const racing = G.state === 'race' || G.state === 'finishing';
   for (const b of boats) {
     if (racing || G.state === 'results') {
+      if (b.remote) { netStep(b, dt); continue; }
       if (racing) {
         if (!b.human || b.auto) aiResolve(b, T);
         else {
@@ -1422,11 +1431,11 @@ function stepRace(dt) {
   }
   if (racing) {
     // end of race conditions
-    const allHumansDone = G.humans.every(b => b.finished);
+    const allHumansDone = G.mode === 3 ? G.humans[0].finished : G.humans.every(b => b.finished);
     if (allHumansDone && G.state === 'race') { G.state = 'finishing'; G.finishWait = 0; }
     if (G.state === 'finishing') {
       G.finishWait += dt;
-      if (G.finishWait > 3.2 || boats.every(b => b.finished)) finishRace();
+      if (G.finishWait > (G.mode === 3 ? 30 : 3.2) || boats.every(b => b.finished)) finishRace();
     } else if (G.humans.some(b => b.finished) && G.humans.length > 1) {
       G.finishWait += dt; if (G.finishWait > 10) { G.humans.forEach(b => { if (!b.finished) { b.finished = false; } }); G.state = 'finishing'; G.finishWait = 3; }
     }
@@ -1532,8 +1541,9 @@ function updateCamera(dt, wall) {
   if (G.freeCam) return;
   // 1v1: split the screen in two (one boat per half) when the boats are far apart
   const W = window.innerWidth, H = window.innerHeight;
-  if (G.humans.length > 1 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing')) {
-    const d = Math.abs(G.humans[0].x - G.humans[1].x);
+  const vb = G.mode === 3 && G.humans.length ? [G.humans[0], boats[1 - NET.myIdx]] : G.humans;
+  if (vb.length > 1 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing')) {
+    const d = Math.abs(vb[0].x - vb[1].x);
     if (!splitOn && d > 30) { splitOn = true; camSnap2 = true; camPos2.copy(camPos); camLook2.copy(camLook); }
     else if (splitOn && d < 16) splitOn = false;
   } else splitOn = false;
@@ -1545,21 +1555,21 @@ function updateCamera(dt, wall) {
     des.set(-8 + Math.sin(a) * 8, 5.5 + Math.sin(a * 0.7) * 1.2, 31 + Math.cos(a) * 3);
     look.set(-27 + Math.sin(a * 0.8) * 3, 2.4, 5);
   } else {
-    const hs = splitOn ? [G.humans[0]] : (G.humans.length ? G.humans : [boats[0]]);
+    const hs = splitOn ? [vb[0]] : (vb.length ? vb : [boats[0]]);
     fov = camGoal(hs, aspect, des, look);
   }
   const k = camSnap ? 1 : 1 - Math.exp(-dt * 3.2);
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
   camSnap = false;
   camera.position.copy(camPos);
-  if ((splitOn ? G.humans[0].boostT > 0 : G.humans.some(b => b.boostT > 0)) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
+  if ((splitOn ? vb[0].boostT > 0 : vb.some(b => b.boostT > 0)) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
   camera.lookAt(camLook);
   if (splitOn) {   // second camera follows the second player's boat
-    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([G.humans[1]], aspect, d2, l2);
+    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], aspect, d2, l2);
     const k2 = camSnap2 ? 1 : 1 - Math.exp(-dt * 3.2);
     camPos2.lerp(d2, k2); camLook2.lerp(l2, camSnap2 ? 1 : 1 - Math.exp(-dt * 4)); camSnap2 = false;
     camera2.position.copy(camPos2);
-    if (G.humans[1].boostT > 0 && G.state === 'race') { camera2.position.x += (Math.random() - .5) * 0.12; camera2.position.y += (Math.random() - .5) * 0.12; }
+    if (vb[1].boostT > 0 && G.state === 'race') { camera2.position.x += (Math.random() - .5) * 0.12; camera2.position.y += (Math.random() - .5) * 0.12; }
     camera2.lookAt(camLook2);
     camera2.fov = lerp(camera2.fov, f2, 1 - Math.exp(-dt * 3)); camera2.updateProjectionMatrix();
   }
@@ -1605,6 +1615,7 @@ function frame(now) {
   };
   if (splitOn) { renderer.setScissorTest(true); renderView(camera, 0, W / 2); renderView(camera2, W / 2, W / 2); splitLine.style.display = 'block'; }
   else { renderer.setScissorTest(false); renderView(camera, 0, W); splitLine.style.display = 'none'; }
+  if (G.mode === 3) netTick();
   // HUD
   if (G.state !== 'menu') {
     panels.forEach(p => drawTrack(p, G.T));
@@ -1628,22 +1639,24 @@ window.addEventListener('keydown', e => {
   if (e.repeat) return;
   const code = e.code;
   if (code === 'KeyM') { toggleMute(); return; }
+  if (G.mode === 3 && code === 'Escape' && (G.state === 'race' || G.state === 'countdown' || G.state === 'finishing')) { if (confirm('Leave the race? · ចាកចេញពីការប្រណាំង?')) toMenu(); return; }
   if (code === 'KeyP' || code === 'Escape') { if (G.state === 'race' || G.state === 'countdown' || G.state === 'finishing') togglePause(); return; }
   if (G.state !== 'race' && G.state !== 'finishing') {
     if ((code === 'Enter' || code === 'Space') && G.state === 'menu' && !$('help').classList.contains('hidden') === false) { /* leave to buttons */ }
     return;
   }
   if (code === 'Space' || code === 'Enter') e.preventDefault();
-  if (G.mode === 1) {
+  if (G.mode !== 2) {
     if (P1KEYS.includes(code) || P2KEYS.includes(code) || code === 'Space' || code === 'Enter') humanHit(G.humans[0]);
   } else {
     if (P1KEYS.includes(code)) humanHit(G.humans[0]);
     else if (P2KEYS.includes(code)) humanHit(G.humans[1]);
   }
 });
-canvas.addEventListener('pointerdown', () => { if (G.mode === 1 && (G.state === 'race' || G.state === 'finishing')) { SFX.init(); humanHit(G.humans[0]); } });
+canvas.addEventListener('pointerdown', () => { if (G.mode !== 2 && (G.state === 'race' || G.state === 'finishing')) { SFX.init(); humanHit(G.humans[0]); } });
 
 function togglePause() {
+  if (G.mode === 3) return;   // no pausing an online race
   G.paused = !G.paused;
   $('pause').classList.toggle('hidden', !G.paused);
   if (SFX.ctx) { G.paused ? SFX.ctx.suspend() : SFX.ctx.resume(); }
@@ -1655,17 +1668,21 @@ function bindSeg(id, attr, cb) {
   const root = $(id);
   root.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; root.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); cb(b.dataset[attr]); });
 }
-bindSeg('segMode', 'mode', v => { G.mode = +v; updateCtrlHint(); });
+bindSeg('segMode', 'mode', v => { if (+v !== 3) netClose(); G.mode = +v; updateCtrlHint(); refreshMenu(); });
 bindSeg('segDiff', 'diff', v => { G.diffKey = v; });
 function updateCtrlHint() {
-  $('ctrlHint').innerHTML = G.mode === 1 ? 'គ្រាប់ចុច · Keys: <kbd>Space</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> · ឬចុចអេក្រង់ tap' :
+  $('ctrlHint').innerHTML = G.mode !== 2 ? 'គ្រាប់ចុច · Keys: <kbd>Space</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> · ឬចុចអេក្រង់ tap' :
     'P1: <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> &nbsp;·&nbsp; P2: <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> <kbd>;</kbd>';
 }
 updateCtrlHint();
-$('btnStart').onclick = startRace;
+$('btnStart').onclick = () => { if (G.mode === 3) hostStart(); else startRace(); };
 $('btnHelp').onclick = () => $('help').classList.remove('hidden');
 $('btnHelpClose').onclick = () => $('help').classList.add('hidden');
-$('btnAgain').onclick = startRace;
+$('btnAgain').onclick = () => {
+  if (G.mode !== 3) return startRace();
+  if (NET.role === 'host') hostStart();
+  else { netSend({ t: 'rematch' }); $('btnAgain').querySelector('i').textContent = 'WAITING FOR HOST…'; }
+};
 $('btnResMenu').onclick = toMenu;
 $('btnResume').onclick = togglePause;
 $('btnPauseMenu').onclick = () => { if (G.paused) togglePause(); toMenu(); };
@@ -1675,6 +1692,110 @@ $('btnMute').onclick = toggleMute;
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (b) b.blur(); });
 document.addEventListener('keydown', e => { if (e.code === 'Tab' && (G.state === 'race' || G.state === 'countdown' || G.state === 'finishing')) e.preventDefault(); });
 document.addEventListener('pointerdown', () => { if (SFX.ctx && SFX.ctx.state === 'suspended' && !G.paused) SFX.ctx.resume(); }, { once: false });
+
+
+/* ------------------------------------------------------------------ */
+/*  Online rooms (peer-to-peer via WebRTC / PeerJS)                   */
+/*  Host = Red boat, guest = Blue boat. Each side simulates its own   */
+/*  boat and streams its state; the notes are seeded so both match.   */
+/* ------------------------------------------------------------------ */
+const NET = { peer: null, conn: null, role: null, code: '', myIdx: 0, ready: false, lastSend: 0, rx: null };
+const CODE_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const newCode = () => Array.from({ length: 5 }, () => CODE_CH[Math.floor(Math.random() * CODE_CH.length)]).join('');
+function netStatus(txt, cls) { const e = $('olStatus'); e.textContent = txt; e.className = 'olstatus ' + (cls || ''); }
+function refreshMenu() {
+  const on = G.mode === 3, inRoom = !!NET.role;
+  $('onlineBox').classList.toggle('hidden', !on);
+  $('olStart').classList.toggle('hidden', inRoom);
+  $('olRoom').classList.toggle('hidden', !inRoom);
+  $('roomCode').textContent = NET.code || '—';
+  $('grpDiff').classList.toggle('hidden', on && NET.role !== 'host');
+  $('btnStart').classList.toggle('hidden', on && !(NET.role === 'host' && NET.ready));
+  $('btnAgain').querySelector('i').textContent = 'Race again'; $('btnAgain').classList.remove('hidden');
+  if (!on || !inRoom) netStatus('');
+}
+function netClose() {
+  const c = NET.conn, p = NET.peer;
+  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = ''; NET.rx = null;
+  try { c && c.close(); } catch (e) { }
+  try { p && p.destroy(); } catch (e) { }
+}
+function netSend(m) { try { if (NET.conn && NET.conn.open) NET.conn.send(m); } catch (e) { } }
+function netAttach(c) {
+  NET.conn = c;
+  const opened = () => {
+    if (NET.conn !== c) return;
+    NET.ready = true; netSend({ t: 'hi' }); refreshMenu();
+    netStatus(NET.role === 'host' ? 'Friend joined! Press START RACE.' : 'Connected! Waiting for the host to start…', 'ok');
+  };
+  c.on('open', opened); if (c.open) opened();
+  c.on('data', netOnData);
+  const gone = () => {
+    if (NET.conn !== c) return;
+    const racing = G.mode === 3 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing');
+    if (racing) { showBanner('គូប្រជែងចាកចេញ', 'OPPONENT LEFT'); setTimeout(toMenu, 1800); }
+    else if (G.state === 'results') { NET.conn = null; NET.ready = false; $('btnAgain').classList.add('hidden'); }
+    else { netClose(); refreshMenu(); netStatus('Disconnected.', 'err'); }
+  };
+  c.on('close', gone); c.on('error', gone);
+}
+function netGuard() {
+  if (typeof Peer === 'undefined') { netStatus('Online library failed to load (check your connection).', 'err'); return false; }
+  return true;
+}
+function createRoom(tries) {
+  netClose(); if (!netGuard()) return;
+  NET.role = 'host'; NET.myIdx = 0; NET.code = newCode(); refreshMenu(); netStatus('Creating room…');
+  const peer = NET.peer = new Peer('omtouk-' + NET.code);
+  peer.on('open', () => { if (NET.peer === peer) netStatus('Share this code with your friend and wait for them to join…'); });
+  peer.on('connection', c => { if (NET.conn) { c.on('open', () => c.close()); return; } netAttach(c); });
+  peer.on('error', e => {
+    if (NET.peer !== peer) return;
+    if (e.type === 'unavailable-id' && (tries || 0) < 5) { createRoom((tries || 0) + 1); return; }
+    netClose(); refreshMenu(); netStatus('Could not create room (' + e.type + ').', 'err');
+  });
+}
+function joinRoom(code) {
+  code = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (code.length !== 5) { netStatus('Enter the 5-letter room code.', 'err'); return; }
+  netClose(); if (!netGuard()) return;
+  NET.role = 'guest'; NET.myIdx = 1; NET.code = code; refreshMenu(); netStatus('Joining room ' + code + '…');
+  const peer = NET.peer = new Peer();
+  peer.on('open', () => { if (NET.peer === peer) netAttach(peer.connect('omtouk-' + code, { reliable: true })); });
+  peer.on('error', e => {
+    if (NET.peer !== peer) return;
+    netClose(); refreshMenu(); netStatus(e.type === 'peer-unavailable' ? 'Room ' + code + ' not found.' : 'Could not join (' + e.type + ').', 'err');
+  });
+  setTimeout(() => { if (NET.peer === peer && !NET.ready) { netClose(); refreshMenu(); netStatus('Could not reach room ' + code + '.', 'err'); } }, 12000);
+}
+function hostStart() {
+  if (NET.role !== 'host' || !NET.ready) return;
+  netSend({ t: 'start', diff: G.diffKey }); startRace();
+}
+function netOnData(m) {
+  if (!m) return;
+  if (m.t === 'start' && NET.role === 'guest' && DIFFS[m.diff]) { G.diffKey = m.diff; startRace(); }
+  else if (m.t === 'rematch' && NET.role === 'host' && G.state === 'results') hostStart();
+  else if (m.t === 's') NET.rx = Object.assign(m, { at: G.clock });
+}
+function netState(b) { return { x: b.x, v: b.v, sy: b.sync, cb: b.combo, mc: b.maxCombo, bt: b.boostT, sc: b.score, p: b.stats.p, g: b.stats.g, m: b.stats.m, f: b.finished ? 1 : 0, ft: b.finishT }; }
+function netTick() {
+  if (!NET.ready || (G.state !== 'countdown' && G.state !== 'race' && G.state !== 'finishing')) return;
+  if (G.clock - NET.lastSend < 0.07) return;
+  NET.lastSend = G.clock; netSend({ t: 's', ...netState(G.humans[0]) });
+}
+function netStep(b, dt) {
+  const r = NET.rx; if (!r) return;
+  const tx = r.x + r.v * Math.min(0.5, G.clock - r.at);
+  b.v = r.v; b.x += r.v * dt + (tx - b.x) * Math.min(1, dt * 8);
+  b.sync = r.sy; b.combo = r.cb; b.maxCombo = r.mc; b.boostT = r.bt; b.score = r.sc; b.stats = { p: r.p, g: r.g, m: r.m };
+  if (r.f && !b.finished) { b.finished = true; b.finishT = r.ft; beatFinishDrum(b); }
+}
+$('btnCreate').onclick = () => createRoom(0);
+$('btnJoin').onclick = () => joinRoom($('joinCode').value);
+$('joinCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') joinRoom($('joinCode').value); });
+$('btnLeave').onclick = () => { netClose(); refreshMenu(); };
+$('btnCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $('btnCopy').textContent = 'Copied!'; setTimeout(() => $('btnCopy').textContent = 'Copy', 1500); } catch (e) { } };
 
 /* ------------------------------------------------------------------ */
 /*  Boot                                                              */
