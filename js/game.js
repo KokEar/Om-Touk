@@ -1000,23 +1000,32 @@ function aim(m, ax, ay, az, bx, by, bz) {
 }
 const L_SHAFT = 1.7;
 function poseRower(r, u, mode, T) {
-  let phi, psi;
+  // The blade tip is driven along a path (in the water on the drive, lifted and swung forward on the
+  // recovery); the shaft then runs from that tip up through the hands, so the paddle pivots in the water
+  // instead of swinging about the grip like a pendulum.
+  let tx, ty, out, lift = 0;
   if (mode === 1) {
-    if (u < 0.5) { phi = lerp(0.6, -0.55, smooth(u / 0.5)); psi = 0.38; }
-    else { const k = (u - 0.5) / 0.5; phi = lerp(-0.55, 0.6, smooth(k)); psi = 0.38 + 0.78 * Math.sin(PI * k); }
-  } else { phi = 0.5; psi = 0.95 + 0.05 * Math.sin(T * 2 + r.sx); }
-  const lean = -0.28 + 0.46 * (0.6 - phi) / 1.15;
+    if (u < 0.5) { const k = u / 0.5; tx = lerp(0.95, -0.75, smooth(k)); ty = -0.12; out = 0.6; }
+    else { const k = (u - 0.5) / 0.5, a = Math.sin(PI * k); tx = lerp(-0.75, 0.95, smooth(k)); ty = -0.12 + 0.85 * a; out = 0.6 + 0.45 * a; lift = a; }
+  } else { tx = 0.5; ty = 0.5 + 0.04 * Math.sin(T * 2 + r.sx); out = 1.0; }
+  const q = clamp((tx + 0.75) / 1.7, 0, 1);
+  const lean = -0.28 + 0.46 * (1 - q);
   r.R.rotation.z = lean;
   const s = r.side, cl = Math.cos(lean), sl = Math.sin(lean);
   const shY = 0.27 + 0.84 * cl, shX = r.sx - 0.84 * sl;
   const inner = r.sz - s * 0.24, outer = r.sz + s * 0.24;
-  const gx = shX + 0.34, gy = shY + 0.16, gz = r.sz + s * 0.33;
-  const dx = Math.sin(phi), dy = -Math.cos(phi) * Math.cos(psi), dz = s * Math.cos(phi) * Math.sin(psi);
-  r.shaft.position.set(gx + dx * L_SHAFT / 2, gy + dy * L_SHAFT / 2, gz + dz * L_SHAFT / 2);
-  _dir.set(dx, dy, dz); r.shaft.quaternion.setFromUnitVectors(DOWNV, _dir);
+  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.33;
+  let px = r.sx + tx, py = ty, pz = r.sz + s * out;
+  // keep the tip within reach of the hands
+  _dir.set(px - gx, py - gy, pz - gz);
+  const dl = _dir.length();
+  if (dl > L_SHAFT * 0.97) { _dir.multiplyScalar(L_SHAFT * 0.97 / dl); px = gx + _dir.x; py = gy + _dir.y; pz = gz + _dir.z; }
+  _dir.set(px - gx, py - gy, pz - gz).normalize();
+  r.shaft.position.set(px - _dir.x * L_SHAFT / 2, py - _dir.y * L_SHAFT / 2, pz - _dir.z * L_SHAFT / 2);
+  r.shaft.quaternion.setFromUnitVectors(DOWNV, _dir);
   aim(r.armA, shX, shY, inner, gx, gy, gz);
-  aim(r.armB, shX, shY, outer, gx + dx * 0.55, gy + dy * 0.55, gz + dz * 0.55);
-  return { tipY: gy + dy * L_SHAFT, tipX: gx + dx * L_SHAFT, tipZ: gz + dz * L_SHAFT };
+  aim(r.armB, shX, shY, outer, gx + _dir.x * 0.55, gy + _dir.y * 0.55, gz + _dir.z * 0.55);
+  return { tipY: py, tipX: px, tipZ: pz };
 }
 
 /* ------------------------------------------------------------------ */
