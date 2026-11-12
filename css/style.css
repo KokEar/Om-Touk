@@ -114,6 +114,23 @@ kbd{display:inline-block;min-width:24px;padding:2px 6px;margin:1px;border-radius
   .panel .phead{margin-bottom:2px}
 }
 
+/* short landscape (phones on their side): compact HUD so the boats stay visible */
+@media (max-height:520px) and (min-width:500px){
+  #topbar{top:6px}
+  #progress{padding:4px 10px 8px;max-width:420px}
+  .p-label{font-size:11px;margin-bottom:4px}
+  #ranks{min-width:0;padding:4px 8px;font-size:11px}
+  #hudBtns{top:calc(6px + 70px)}
+  #hudBtns button{width:32px;height:32px}
+  #panels{bottom:4px;gap:8px}
+  .panel{max-width:320px;padding:4px 8px;border-radius:12px}
+  .panel .phead{font-size:11px;margin-bottom:2px}
+  .panel .phead .pk{display:none}
+  .panel .meters{margin-top:2px;font-size:10px}
+  .panel .sync{height:8px}
+  .panel .spd{display:none}
+}
+
 /* ---------- results ---------- */
 #resTable{width:100%;border-collapse:collapse;margin-top:6px;text-align:left}
 #resTable th{font-size:11px;color:var(--gold);padding:4px 8px;font-weight:700;letter-spacing:.08em}

@@ -1584,7 +1584,7 @@ function camGoal(hs, aspect, des, look) {
   if (aspect < 0.8) dist = Math.min(95, Math.max(dist, 22 / aspect));   // narrow view (phone split-screen): pull back so the whole boat fits across
   const lead = hs.reduce((m, b) => Math.max(m, b.v), 0);
   des.set(cx + 13 + Math.min(spread, 40) * 0.1, 7.8 + dist * 0.06, cz + dist);
-  look.set(cx + 2.5, 1.8, cz - 3);
+  look.set(cx + 2.5, window.innerHeight < 520 && aspect > 1.1 ? -3.2 : 1.8, cz - 3);   // short landscape phone: aim lower so boats sit above the tap panel
   fov += lead * 0.22 + (hs.some(b => b.boostT > 0) ? 4 : 0);
   if (G.state === 'results') { des.x += 10; des.y += 1; }
   return fov;
