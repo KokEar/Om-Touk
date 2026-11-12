@@ -1751,6 +1751,7 @@ function createRoom(tries) {
   peer.on('connection', c => { if (NET.conn) { c.on('open', () => c.close()); return; } netAttach(c); });
   peer.on('error', e => {
     if (NET.peer !== peer) return;
+    if (e.type === 'peer-unavailable' || e.type === 'webrtc') return;   // a joiner dropped out mid-handshake: keep the room open
     if (e.type === 'unavailable-id' && (tries || 0) < 5) { createRoom((tries || 0) + 1); return; }
     netClose(); refreshMenu(); netStatus('Could not create room (' + e.type + ').', 'err');
   });
@@ -1766,7 +1767,7 @@ function joinRoom(code) {
     if (NET.peer !== peer) return;
     netClose(); refreshMenu(); netStatus(e.type === 'peer-unavailable' ? 'Room ' + code + ' not found.' : 'Could not join (' + e.type + ').', 'err');
   });
-  setTimeout(() => { if (NET.peer === peer && !NET.ready) { netClose(); refreshMenu(); netStatus('Could not reach room ' + code + '.', 'err'); } }, 12000);
+  setTimeout(() => { if (NET.peer === peer && !NET.ready) { netClose(); refreshMenu(); netStatus('Could not reach room ' + code + '.', 'err'); } }, 25000);
 }
 function hostStart() {
   if (NET.role !== 'host' || !NET.ready) return;
