@@ -426,8 +426,17 @@ function buildCrowdAndFlags() {
   const list = [];
   rows.forEach(row => { for (let x = X0 + rnd(); x < X1; x += 0.72 + rnd() * 0.4) { if (rnd() < 0.07) continue; list.push({ x, y: row.y, z: row.z + (rnd() - 0.5) * 0.55 }); } });
   const n = list.length;
-  const bodyGeo = new THREE.CylinderGeometry(0.26, 0.31, 0.85, 6).translate(0, 0.43, 0);
-  const headGeo = new THREE.SphereGeometry(0.2, 7, 5).translate(0, 1.13, 0);
+  const bodyGeo = new THREE.CylinderGeometry(0.26, 0.31, 0.85, 6).translate(0, 0.73, 0);
+  const headGeo = new THREE.SphereGeometry(0.2, 7, 5).translate(0, 1.43, 0);
+  // legs + feet: two legs and two shoes merged into one geometry
+  const legParts = [];
+  for (const sx of [-1, 1]) {
+    legParts.push(new THREE.CylinderGeometry(0.075, 0.075, 0.32, 6).translate(sx * 0.12, 0.2, 0));
+    legParts.push(new THREE.BoxGeometry(0.15, 0.08, 0.26).translate(sx * 0.12, 0.04, 0.05));
+  }
+  const legGeo = new THREE.BufferGeometry(), lp = [], ln = [], li = []; let lo = 0;
+  legParts.forEach(g => { const pa = g.attributes.position.array, na = g.attributes.normal.array; for (let i = 0; i < pa.length; i++) { lp.push(pa[i]); ln.push(na[i]); } g.index.array.forEach(v => li.push(v + lo)); lo += pa.length / 3; });
+  legGeo.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); legGeo.setAttribute('normal', new THREE.Float32BufferAttribute(ln, 3)); legGeo.setIndex(li);
   const armGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.72, 4).translate(0, 0.36, 0);
   const mk = (geo) => {
     const mt = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -438,7 +447,7 @@ function buildCrowdAndFlags() {
     };
     return new THREE.InstancedMesh(geo, mt, n);
   };
-  const bodies = mk(bodyGeo), heads = mk(headGeo);
+  const bodies = mk(bodyGeo), heads = mk(headGeo), legs = mk(legGeo);
   const armList = list.filter(() => rnd() < 0.5);
   const arms = mk(armGeo); arms.count = armList.length;
   const shirts = [0xe53935, 0xffc107, 0x2e86de, 0x43a047, 0xff7043, 0xffffff, 0xab47bc, 0x26c6da, 0xf06292, 0x1e4aa8, 0xffeb3b];
@@ -446,15 +455,15 @@ function buildCrowdAndFlags() {
   const o = new THREE.Object3D(), col = new THREE.Color();
   list.forEach((p, i) => {
     o.position.set(p.x, p.y, p.z); o.rotation.set(0, 0, 0); o.scale.set(1, rr(0.92, 1.1), 1); o.updateMatrix();
-    bodies.setMatrixAt(i, o.matrix); heads.setMatrixAt(i, o.matrix);
+    bodies.setMatrixAt(i, o.matrix); heads.setMatrixAt(i, o.matrix); legs.setMatrixAt(i, o.matrix); legs.setColorAt(i, col.setHex(pick([0x2a2a35, 0x1f3a5f, 0x4a3b2a, 0x333333])));
     bodies.setColorAt(i, col.setHex(pick(shirts))); heads.setColorAt(i, col.setHex(pick(skins)));
   });
   armList.forEach((p, i) => {
     const s = rnd() < 0.5 ? -1 : 1;
-    o.position.set(p.x + 0.27 * s, p.y + 0.78, p.z); o.rotation.set(0, 0, -0.35 * s); o.scale.set(1, 1, 1); o.updateMatrix();
+    o.position.set(p.x + 0.27 * s, p.y + 1.08, p.z); o.rotation.set(0, 0, -0.35 * s); o.scale.set(1, 1, 1); o.updateMatrix();
     arms.setMatrixAt(i, o.matrix); arms.setColorAt(i, col.setHex(pick(skins)));
   });
-  [bodies, heads, arms].forEach(m => { m.frustumCulled = false; scene.add(m); });
+  [bodies, heads, legs, arms].forEach(m => { m.frustumCulled = false; scene.add(m); });
 
   // flag poles + flags + bunting
   const step = 13, poleY = 1.9, poleH = 8.5;
