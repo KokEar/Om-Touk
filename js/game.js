@@ -551,8 +551,8 @@ function buildCourse() {
       for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { c.fillStyle = ((x + y) % 2) ? ('#e0283f') : '#ffffff'; c.fillRect(x * 32, y * 32, 32, 32); }
     });
     lineTex.wrapS = lineTex.wrapT = THREE.RepeatWrapping; lineTex.repeat.set(2, 22);
-    const ln = new THREE.Mesh(new THREE.PlaneGeometry(3, 33).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ map: lineTex, transparent: true, opacity: finish ? 0.95 : 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-    ln.position.set(0, 0.32, 0); g.add(ln);
+    const ln = new THREE.Mesh(new THREE.PlaneGeometry(3, 33).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ map: lineTex, transparent: true, opacity: finish ? 0.95 : 0.8, depthWrite: false }));
+    ln.position.set(0, 0.2, 0); g.add(ln);
     g.userData.line = ln;
     if (band) { // band markers: small red boats with red flags instead of the chequered strip
       ln.visible = false;

@@ -159,3 +159,16 @@ button.big.green:active{box-shadow:0 1px 0 #0a5324}
 #onlineBox{margin-bottom:0}
 .olstatus{margin-top:6px;min-height:0;line-height:1.3}
 #onlineBox + #grpDiff.hidden + #btnStart.hidden + #btnHelp,#onlineBox ~ #btnHelp{margin-top:6px}
+.codekh b,.orline b{font-family:var(--khT),var(--kh),sans-serif;font-weight:400;font-size:18px;line-height:1.3}
+.codewrap{padding:8px 6px;gap:0}
+.codekh{display:block;line-height:1.5}
+.codekh b{display:block;font-size:18px;line-height:1.5}
+.codewrap input{font-size:15px;letter-spacing:.3em;line-height:1.2;padding:0}
+.codewrap{border:2px solid #ffe08a;border-radius:16px;background:linear-gradient(180deg,#2c6bd1,#123e8e);box-shadow:0 5px 0 #09285e,0 10px 24px rgba(0,0,0,.4);padding:8px 6px;color:#fff}
+.codewrap:focus-within{border-color:#fff}
+.codekh,.codekh b{color:#fff;opacity:1;font-family:var(--khT),var(--kh),sans-serif;font-weight:400}
+.codewrap input{font-size:12px;letter-spacing:.3em;color:#fff;opacity:.9;font-weight:400;font-family:var(--kh)}
+.codewrap input::placeholder{color:#fff;opacity:.9}
+.codewrap:focus-within .codekh b,.codewrap:has(input:not(:placeholder-shown)) .codekh b{font-size:12px;line-height:1.3}
+.codewrap:focus-within input,.codewrap:has(input:not(:placeholder-shown)) input{font-size:26px;font-weight:700;letter-spacing:.35em;line-height:1.2}
+.codewrap input:focus::placeholder{color:transparent;opacity:0}
