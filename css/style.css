@@ -148,27 +148,21 @@ kbd{display:inline-block;min-width:24px;padding:2px 6px;margin:1px;border-radius
 #onlineBox .joinrow input{padding:8px 6px}
 button.big.green{background:linear-gradient(180deg,#2fc76a,#12803a);box-shadow:0 5px 0 #0a5324,0 10px 24px rgba(0,0,0,.4)}
 button.big.green:active{box-shadow:0 1px 0 #0a5324}
-.codewrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.codewrap input{flex:1}
-.codekh{text-align:center;font-family:var(--kh);font-size:12px;opacity:.85}
-.codewrap{border-radius:14px;border:2px solid rgba(255,207,63,.5);background:rgba(255,255,255,.08);justify-content:center;gap:0;padding:4px 6px}
-.codewrap:focus-within{border-color:var(--gold)}
-.codewrap input{flex:0 0 auto;border:0;background:transparent;padding:0;line-height:1.2}
-.codekh{color:var(--cream)}
 .olstatus:empty{display:none}
 #onlineBox{margin-bottom:0}
 .olstatus{margin-top:6px;min-height:0;line-height:1.3}
 #onlineBox + #grpDiff.hidden + #btnStart.hidden + #btnHelp,#onlineBox ~ #btnHelp{margin-top:6px}
 .codekh b,.orline b{font-family:var(--khT),var(--kh),sans-serif;font-weight:400;font-size:18px;line-height:1.3}
-.codewrap{padding:8px 6px;gap:0}
-.codekh{display:block;line-height:1.5}
-.codekh b{display:block;font-size:18px;line-height:1.5}
-.codewrap input{font-size:15px;letter-spacing:.3em;line-height:1.2;padding:0}
-.codewrap{border:2px solid #ffe08a;border-radius:16px;background:linear-gradient(180deg,#2c6bd1,#123e8e);box-shadow:0 5px 0 #09285e,0 10px 24px rgba(0,0,0,.4);padding:8px 6px;color:#fff}
-.codewrap:focus-within{border-color:#fff}
-.codekh,.codekh b{color:#fff;opacity:1;font-family:var(--khT),var(--kh),sans-serif;font-weight:400}
-.codewrap input{font-size:12px;letter-spacing:.3em;color:#fff;opacity:.9;font-weight:400;font-family:var(--kh)}
-.codewrap input::placeholder{color:#fff;opacity:.9}
-.codewrap:focus-within .codekh b,.codewrap:has(input:not(:placeholder-shown)) .codekh b{font-size:12px;line-height:1.3}
-.codewrap:focus-within input,.codewrap:has(input:not(:placeholder-shown)) input{font-size:26px;font-weight:700;letter-spacing:.35em;line-height:1.2}
-.codewrap input:focus::placeholder{color:transparent;opacity:0}
+
+/* Room code field */
+.codewrap{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;padding:8px 12px 6px;border-radius:14px;
+  background:rgba(8,22,56,.65);border:1.5px solid rgba(255,255,255,.18);box-shadow:inset 0 2px 6px rgba(0,0,0,.35);
+  transition:border-color .15s,box-shadow .15s,background .15s;cursor:text}
+.codewrap:hover{border-color:rgba(255,224,138,.5)}
+.codewrap:focus-within{border-color:var(--gold);background:rgba(8,22,56,.85);box-shadow:inset 0 2px 6px rgba(0,0,0,.35),0 0 0 3px rgba(255,207,63,.25)}
+.codekh{display:block;text-align:center;line-height:1.3;color:rgba(255,255,255,.7)}
+.codekh b{display:block;font-family:var(--khT),var(--kh),sans-serif;font-weight:400;font-size:14px;line-height:1.4;color:inherit}
+.codewrap input{flex:0 0 auto;width:100%;border:0;outline:0;background:transparent;padding:0;text-align:center;text-transform:uppercase;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:24px;font-weight:700;letter-spacing:.4em;text-indent:.4em;line-height:1.2;color:#fff;caret-color:var(--gold)}
+.codewrap input::placeholder{color:rgba(255,255,255,.28);letter-spacing:.4em;font-weight:600}
+.codewrap input:focus::placeholder{color:transparent}
