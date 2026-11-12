@@ -1362,7 +1362,7 @@ function startRace() {
   ['menu', 'results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.remove('hidden');
   $('btnPause').style.display = G.mode === 3 ? 'none' : '';
-  if (G.mode === 3) saveSess({ role: NET.role, code: NET.code, diff: G.diffKey });
+  if (G.mode === 3) { SESS = { role: NET.role, code: NET.code, diff: G.diffKey }; saveSnap(true); }
   $('btnAgain').querySelector('i').textContent = 'Race again';
   camSnap = true;
 }
@@ -1435,6 +1435,7 @@ function scheduleAudio(T) {
 
 function stepRace(dt) {
   if (G.paused) return;
+  saveSnap();
   const prevT = G.T;
   G.T += dt;
   const T = G.T, I = G.I;
@@ -1748,6 +1749,13 @@ $('btnPause').onclick = togglePause;
 $('btnMute').onclick = toggleMute;
 // keep keyboard focus off the buttons so Space / Enter / Tab never click Pause or Start by accident
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button'); if (b) b.blur(); });
+/* no reloading during a race: block the reload shortcuts and make the browser ask before leaving */
+const inRace = () => G.state === 'countdown' || G.state === 'race' || G.state === 'finishing';
+document.addEventListener('keydown', e => {
+  const k = (e.key || '').toLowerCase();
+  if (inRace() && (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && k === 'r'))) { e.preventDefault(); e.stopPropagation(); showBanner('មិនអាចផ្ទុកទំព័រឡើងវិញបានទេ', 'CAN\'T RELOAD DURING A RACE'); }
+}, true);
+window.addEventListener('beforeunload', e => { if (inRace() && !G.demo) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('keydown', e => { if (e.code === 'Tab' && (G.state === 'race' || G.state === 'countdown' || G.state === 'finishing')) e.preventDefault(); });
 document.addEventListener('pointerdown', () => { if (SFX.ctx && SFX.ctx.state === 'suspended' && !G.paused) SFX.ctx.resume(); }, { once: false });
 
@@ -1774,7 +1782,7 @@ function refreshMenu() {
 }
 function netClose() {
   const c = NET.conn, p = NET.peer;
-  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = ''; NET.rx = null;
+  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = '';   // NET.rx is kept so the other boat keeps gliding while a link is rebuilt
   try { c && c.close(); } catch (e) { }
   try { p && p.destroy(); } catch (e) { }
 }
@@ -1785,7 +1793,8 @@ function netAttach(c) {
     if (NET.conn !== c) return;
     NET.ready = true; netSend({ t: 'hi' }); refreshMenu();
     netStatus(NET.role === 'host' ? 'Friend joined! Press START RACE.' : 'Connected! Waiting for the host to start…', 'ok');
-    if (NET.role === 'host' && NET.autoStart) { NET.autoStart = false; setTimeout(() => { if (NET.ready && NET.conn === c) hostStart(); }, 600); }
+    NET.waiting = false; clearTimeout(NET.waitTimer);
+    if (NET.resumeSnap) { const r = NET.resumeSnap; NET.resumeSnap = null; restoreRace(r); }
   };
   c.on('open', opened); if (c.open) opened();
   c.on('data', m => { if (m && m.t === 'bye') gone(); else netOnData(m); });
@@ -1793,12 +1802,10 @@ function netAttach(c) {
     if (NET.conn !== c) return;
     const racing = G.mode === 3 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing');
     if (racing) {
-      // opponent dropped (e.g. reloaded): stay on the race screen, frozen, and wait for them to come back
+      // opponent dropped (e.g. reloaded): keep racing; only their side is interrupted
       const role = NET.role, code = NET.code;
       NET.conn = null; NET.ready = false; NET.waiting = true;
-      G.paused = true; if (SFX.ctx) SFX.ctx.suspend();
-      showCount('…', 'Opponent disconnected — waiting for them to come back');
-      if (role === 'host') NET.autoStart = true; else joinRoom(code, Date.now() + 50000);
+      if (role === 'guest') joinRoom(code, Date.now() + 50000);
       clearTimeout(NET.waitTimer);
       NET.waitTimer = setTimeout(() => { if (NET.waiting) { saveSess(null); toMenu(); } }, 50000);
     }
@@ -1813,7 +1820,7 @@ function netGuard() {
 }
 function createRoom(tries, fixed) {
   netClose(); if (!netGuard()) return;
-  NET.role = 'host'; NET.myIdx = 0; NET.code = fixed || newCode(); if (fixed) NET.autoStart = true; refreshMenu(); netStatus('Creating room…');
+  NET.role = 'host'; NET.myIdx = 0; NET.code = fixed || newCode(); refreshMenu(); netStatus('Creating room…');
   const peer = NET.peer = new Peer('omtouk-' + NET.code);
   peer.on('open', () => { if (NET.peer === peer) netStatus('Share this code with your friend and wait for them to join…'); });
   peer.on('connection', c => {
@@ -1822,8 +1829,7 @@ function createRoom(tries, fixed) {
       if (!racing) { c.on('open', () => c.close()); return; }
       // the other player reloaded: their old link is dead but not timed out yet, so replace it
       const old = NET.conn; NET.conn = null; NET.ready = false; try { old.close(); } catch (e) { }
-      NET.autoStart = true;
-      if (!NET.waiting) { NET.waiting = true; G.paused = true; if (SFX.ctx) SFX.ctx.suspend(); showCount('…', 'Opponent reconnecting…'); }
+      NET.waiting = true;
     }
     netAttach(c);
   });
@@ -1874,12 +1880,15 @@ function netTick() {
 }
 function netStep(b, dt) {
   const r = NET.rx; if (!r) return;
+  b.v = r.v;
+  if (!NET.ready) { b.x += r.v * dt; return; }   // opponent is reloading: their boat just keeps gliding, nothing else changes
   const tx = r.x + r.v * Math.min(0.5, G.clock - r.at);
-  b.v = r.v; b.x += r.v * dt + (tx - b.x) * Math.min(1, dt * 8);
+  b.x += r.v * dt + (tx - b.x) * Math.min(1, dt * 8);
   b.sync = r.sy; b.combo = r.cb; b.maxCombo = r.mc; b.boostT = r.bt; b.score = r.sc; b.stats = { p: r.p, g: r.g, m: r.m };
   if (r.f && !b.finished) { b.finished = true; b.finishT = r.ft; beatFinishDrum(b); }
 }
 window.addEventListener('pagehide', () => {
+  saveSnap(true);
   if (NET.conn && G.mode === 3) { netSend({ t: 'bye' }); try { NET.conn.close(); } catch (e) { } }
 });
 $('btnCreate').onclick = () => createRoom(0);
@@ -1891,6 +1900,24 @@ $('btnCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $(
 /* ------------------------------------------------------------------ */
 /*  Reload recovery (online race interrupted by a page refresh)       */
 /* ------------------------------------------------------------------ */
+let SESS = null, lastSnap = 0;
+function saveSnap(force) {
+  if (G.mode !== 3 || !SESS || !G.humans.length || (G.state !== 'countdown' && G.state !== 'race' && G.state !== 'finishing')) return;
+  const n = Date.now(); if (!force && n - lastSnap < 400) return; lastSnap = n;
+  const b = G.humans[0];
+  saveSess(Object.assign({}, SESS, { snap: { ts: n, T: G.T, st: G.state, b: { x: b.x, v: b.v, sync: b.sync, combo: b.combo, maxCombo: b.maxCombo, score: b.score, boostT: b.boostT, finished: b.finished, finishT: b.finishT, ptr: b.ptr, bandsDone: b.bandsDone, stats: b.stats, ns: Array.from(b.ns) } } }));
+}
+function restoreRace(s) {
+  const sn = s.snap, b = G.humans[0]; if (!sn || !b) { G.paused = false; return; }
+  const el = (Date.now() - sn.ts) / 1000, o = sn.b;
+  G.T = sn.T + el;
+  Object.assign(b, { x: o.x + (o.finished ? 0 : o.v * el), v: o.v, sync: o.sync, combo: o.combo, maxCombo: o.maxCombo, score: o.score, boostT: o.boostT, finished: o.finished, finishT: o.finishT, ptr: o.ptr, bandsDone: o.bandsDone, stats: o.stats, ns: Uint8Array.from(o.ns) });
+  G.state = sn.st === 'finishing' ? 'finishing' : G.T >= 0 ? 'race' : 'countdown';
+  G.cdShown = Math.floor(G.T / G.I + 1e-6); G.audStep = Math.max(G.audStep, Math.ceil(G.T / (G.I * 0.5)));
+  G.paused = false; if (SFX.ctx) SFX.ctx.resume();
+  if (G.state !== 'countdown') $('countdown').innerHTML = '';
+  showBanner('បន្តការប្រណាំង', 'BACK IN THE RACE');
+}
 function saveSess(v) { try { v ? sessionStorage.setItem('omtouk-sess', JSON.stringify(v)) : sessionStorage.removeItem('omtouk-sess'); } catch (e) { } }
 function loadSess() { try { const v = JSON.parse(sessionStorage.getItem('omtouk-sess')); return v && /^[A-Z0-9]{5}$/.test(v.code) && (v.role === 'host' || v.role === 'guest') ? v : null; } catch (e) { return null; } }
 function checkInterrupted() {
@@ -1903,11 +1930,17 @@ function checkInterrupted() {
   G.state = 'countdown'; G.paused = true; camSnap = true;
   $('menu').classList.add('hidden'); $('hud').classList.remove('hidden'); $('btnPause').style.display = 'none';
   $('interrupt').classList.remove('hidden');
-  $('btnSurrender').onclick = () => { saveSess(null); $('interrupt').classList.add('hidden'); toMenu(); };
+  let autoT = null, left = 5; const rl = $('btnIntResume').querySelector('i');
+  const stopAuto = () => { clearInterval(autoT); rl.textContent = 'Resume'; };
+  autoT = setInterval(() => { if (--left <= 0) $('btnIntResume').onclick(); else rl.textContent = 'Resume (' + left + ')'; }, 1000);
+  rl.textContent = 'Resume (' + left + ')';
+  $('btnSurrender').onclick = () => { stopAuto(); saveSess(null); $('interrupt').classList.add('hidden'); toMenu(); };
   $('btnIntResume').onclick = () => {
+    stopAuto();
     $('interrupt').classList.add('hidden');
     showCount('…', 'Reconnecting to your opponent');
-    setTimeout(() => { if (G.paused && G.state === 'countdown') { saveSess(null); toMenu(); } }, 50000);   // gave up waiting
+    SESS = { role: s.role, code: s.code, diff: s.diff }; NET.resumeSnap = s;
+    setTimeout(() => { if (NET.resumeSnap) { NET.resumeSnap = null; saveSess(null); toMenu(); } }, 50000);   // gave up waiting
     if (s.role === 'host') createRoom(0, s.code); else joinRoom(s.code, Date.now() + 45000);
   };
 }
@@ -1928,5 +1961,5 @@ if (document.fonts && document.fonts.load) {
 requestAnimationFrame(frame);
 setTimeout(() => $('loading').classList.add('done'), 350);
 if (G.demo) { G.mode = 1; G.diffKey = (location.search.match(/diff=(\w+)/) || [0, 'normal'])[1]; setTimeout(startRace, 400); }
-window.__om = { G, boats, startRace, camera, scene, renderer, step(sec) { for (let t = 0; t < sec; t += 1 / 30) { stepRace(1 / 30); wall += 1 / 30; updateVisuals(1 / 30, wall); updateParticles(1 / 30); } camSnap = true; } };
+window.__om = { G, NET, boats, startRace, camera, scene, renderer, step(sec) { for (let t = 0; t < sec; t += 1 / 30) { stepRace(1 / 30); wall += 1 / 30; updateVisuals(1 / 30, wall); updateParticles(1 / 30); } camSnap = true; } };
 })();
