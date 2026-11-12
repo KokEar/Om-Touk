@@ -248,23 +248,30 @@ const scaleTex = canvasTex(128, 128, (c, w, h) => {
 });
 scaleTex.wrapS = scaleTex.wrapT = THREE.RepeatWrapping;
 
+// Painted hull like a real Cambodian racing boat: green sheer, red/orange ornament band with gold diamonds and green leaves.
 function hullTexture(s) {
-  const hull = '#' + s.hull.toString(16).padStart(6, '0'), dark = '#' + s.dark.toString(16).padStart(6, '0');
-  const tex = canvasTex(256, 128, (c, w, h) => {
-    c.fillStyle = hull; c.fillRect(0, 0, w, h);
-    // symmetrical about the keel (v = .5): bands from the rim inward
-    const band = (v0, v1, col) => { c.fillStyle = col; c.fillRect(0, v0 * h, w, (v1 - v0) * h); c.fillRect(0, (1 - v1) * h, w, (v1 - v0) * h); };
-    band(0, 0.09, '#ffc62e'); band(0.09, 0.17, dark); band(0.17, 0.2, '#ffe9a0');
-    band(0.44, 0.5, dark);
-    c.fillStyle = '#ffc62e';
-    for (let k = 0; k < 2; k++) {
-      const cx = w * 0.5, cy = h * (k ? 0.72 : 0.28);
-      c.beginPath(); c.moveTo(cx, cy - 15); c.lineTo(cx + 18, cy); c.lineTo(cx, cy + 15); c.lineTo(cx - 18, cy); c.closePath(); c.fill();
-      c.fillStyle = dark; c.beginPath(); c.arc(cx, cy, 5, 0, TAU); c.fill(); c.fillStyle = '#ffc62e';
-      for (const dx of [-60, 60]) { c.beginPath(); c.arc(cx + dx, cy, 6, 0, TAU); c.fill(); }
+  const W = 2048, H = 512, HH = H / 2;
+  const tex = canvasTex(W, H, (c) => {
+    // upper half: rim (top) → keel (bottom); then mirrored for the other side
+    const row = (y0, y1, col) => { c.fillStyle = col; c.fillRect(0, y0 * HH, W, (y1 - y0) * HH); };
+    row(0, 1, '#1f9a3f');                      // green hull
+    row(0, 0.05, '#f6c21c'); row(0.05, 0.09, '#0f6a2a');   // gold rim + dark green line
+    row(0.12, 0.5, '#e8541a');                 // orange-red ornament band
+    row(0.12, 0.15, '#f6c21c'); row(0.47, 0.5, '#f6c21c');
+    row(0.5, 0.56, '#0f6a2a'); row(0.56, 0.6, '#f6c21c');
+    row(0.72, 0.78, '#d81f2a');               // red stripe low on the hull
+    const T = 64;
+    for (let x = 0; x < W; x += T) {
+      const cx = x + T / 2, cy = HH * 0.31;
+      c.fillStyle = '#f6c21c'; c.beginPath(); c.moveTo(cx, cy - 22); c.lineTo(cx + 24, cy); c.lineTo(cx, cy + 22); c.lineTo(cx - 24, cy); c.closePath(); c.fill();
+      c.fillStyle = '#d81f2a'; c.beginPath(); c.moveTo(cx, cy - 12); c.lineTo(cx + 13, cy); c.lineTo(cx, cy + 12); c.lineTo(cx - 13, cy); c.closePath(); c.fill();
+      c.fillStyle = '#1f9a3f'; c.beginPath(); c.moveTo(x, HH * 0.15); c.lineTo(x + T / 2, HH * 0.24); c.lineTo(x + T, HH * 0.15); c.closePath(); c.fill();     // leaf teeth
+      c.beginPath(); c.moveTo(x, HH * 0.47); c.lineTo(x + T / 2, HH * 0.38); c.lineTo(x + T, HH * 0.47); c.closePath(); c.fill();
+      c.fillStyle = '#f6c21c'; c.beginPath(); c.arc(cx, HH * 0.67, 5, 0, TAU); c.fill();
     }
+    c.save(); c.translate(0, H); c.scale(1, -1); c.drawImage(c.canvas, 0, 0, W, HH, 0, 0, W, HH); c.restore();
   });
-  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
   return tex;
 }
 
@@ -309,30 +316,14 @@ function hipRoof(parent, w, d, h, x, y, z, color, trimTall) {
   return g;
 }
 
+let _palaceTex = null;
 function makePalace() {
+  // flat illustration of the Royal Palace pavilion standing on the ground as a backdrop
   const g = new THREE.Group();
-  const cream = M(0xf4ead2), red = M(0xb3202a), stone = M(0xdcd2b6), stone2 = M(0xe9e0c6);
-  box(g, 54, 1.4, 30, 0, 0.7, 0, stone);
-  box(g, 50, 1.2, 26, 0, 2.0, 0, stone2);
-  box(g, 38, 8.5, 17, 0, 6.9, 0, cream);
-  for (let i = 0; i < 13; i++) { const x = -18 + i * 3; cyl(g, 0.5, 8.6, x, 6.9, 9.0, i % 2 ? GOLD : red); cyl(g, 0.8, 0.6, x, 2.9, 9.0, GOLD); }
-  for (let i = 0; i < 6; i++) box(g, 2.2, 3.4, 0.3, -12.5 + i * 5, 5.6, 8.6, M(0x5a2a1a));
-  hipRoof(g, 44, 25, 6.4, 0, 11.0, 0, 0xe8731a, 1.4);
-  hipRoof(g, 34, 18, 5.6, 0, 15.2, 0, 0xf0861c, 1.2);
-  box(g, 14, 6, 11, 0, 20.0, 0, cream);
-  for (let i = 0; i < 5; i++) cyl(g, 0.3, 5.8, -5.5 + i * 2.75, 20.0, 5.7, GOLD);
-  hipRoof(g, 19, 15, 6.5, 0, 22.8, 0, 0xe8731a, 1.3);
-  hipRoof(g, 13.5, 10.5, 6, 0, 27.6, 0, 0xf0861c, 1.2);
-  hipRoof(g, 8.5, 7, 6, 0, 32.2, 0, 0xe8731a, 1.1);
-  cyl(g, 0.9, 2.4, 0, 39.0, 0, GOLD);
-  mesh(GEO.cone, GOLD, g, 0, 41.8, 0, 0.9, 5.0, 0.9);
-  mesh(GEO.cone, GOLD, g, 0, 47.3, 0, 0.18, 6.0, 0.18);
-  mesh(GEO.sph, GOLD, g, 0, 38.0, 0, 0.8, 0.5, 0.8);
-  // two side wings
-  for (const sx of [-1, 1]) {
-    box(g, 9, 5, 9, sx * 31, 5.0, 0, cream);
-    hipRoof(g, 12.5, 12.5, 6, sx * 31, 7.5, 0, 0xe8731a, 1.1);
-  }
+  if (!_palaceTex) _palaceTex = new THREE.TextureLoader().load('assets/palace.png', t => { t.anisotropy = 4; });
+  const W = 74, H = W * 776 / 1024;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: _palaceTex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }));
+  m.position.y = H / 2 - 0.3; g.add(m);
   return g;
 }
 
@@ -641,7 +632,7 @@ function hullGeometry() {
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
       pos.push(x, top - d * Math.sin(th), -w * Math.cos(th));
-      uv.push(i / N * 11, j / Mm);
+      uv.push(i / N, j / Mm);
     }
   }
   for (let i = 0; i < N; i++) for (let j = 0; j < Mm; j++) {
@@ -933,24 +924,33 @@ function makeBoat(si) {
     body.add(new THREE.Mesh(dg, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide })));
   }
 
-  // simple gilded prow and stern posts (no dragon head / tail)
-  for (const sx of [-1, 1]) {
-    const f = mesh(GEO.cone, GOLD, body, sx * (HL + 0.05), 2.15, 0, 0.17, 0.7, 0.17);
-    f.rotation.z = -sx * 0.5;
-    mesh(GEO.sph, GOLD, body, sx * HL, 1.9, 0, 0.14, 0.14, 0.14);
+  // bow: gilded prow with a team flag; stern: upturned tail with red / black tassels (as on real racing boats)
+  {
+    const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 2.15, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
+    mesh(GEO.sph, GOLD, body, HL, 1.9, 0, 0.14, 0.14, 0.14);
+    mesh(GEO.cyl, M(0xe9c477), body, -HL + 0.6, 2.7, 0, 0.035, 1.8, 0.035);                                   // flag pole
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.55), new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
+    flag.position.set(-HL + 0.1, 3.35, 0); body.add(flag);
+    const t = mesh(GEO.cone, GOLD, body, -HL - 0.05, 2.15, 0, 0.17, 0.7, 0.17); t.rotation.z = 0.5;
+    mesh(GEO.sph, GOLD, body, -HL, 1.9, 0, 0.14, 0.14, 0.14);
+    for (const ex of [-HL - 0.12, HL + 0.12]) [[0xd0202a, -0.17, 0.75], [0x111111, 0, 0.85], [0xf0861c, 0.17, 0.7]].forEach(([c, z, l]) => {
+      const tm = M(c);
+      mesh(GEO.cyl, tm, body, ex, 1.85 - l / 2, z, 0.06, l, 0.06);
+      mesh(GEO.sph, tm, body, ex, 1.85, z, 0.09, 0.09, 0.09);
+    });
   }
   const head = new THREE.Group(); body.add(head);
 
   // thwarts
   const wood = M(0xa9794a);
   const rowers = [], pairs = 14;
-  const shirtMats = s.shirts.map(c => M(c));
+  const YEL = 0xf7c71c, shirtMats = [M(YEL), M(YEL)], teamM = M(s.shirts[0]);   // yellow crew shirts as in the reference photo; team colour on the headband and flag
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
   const torsoGeo = new THREE.CylinderGeometry(0.2, 0.145, 0.74, 14, 3).scale(0.85, 1, 1.18), neckG = new THREE.CylinderGeometry(0.055, 0.065, 0.16, 8), headG = new THREE.SphereGeometry(0.19, 10, 8);
   const hairG = new THREE.SphereGeometry(0.2, 10, 6, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 7, 5);
   const armG = new THREE.CylinderGeometry(0.07, 0.06, 1, 6), shaftG = new THREE.CylinderGeometry(0.035, 0.035, 1, 6), bladeG = new THREE.BoxGeometry(0.05, 0.6, 0.3);
-  const bladeM = M(s.hull), shaftM = M(0xe9c477);
+  const bladeM = M(0xf3f0e6), shaftM = M(0xe9d6a0);   // pale paddles
   const L_SHAFT = 1.7;
   for (let i = 0; i < pairs; i++) {
     const sx = 6.76 - i * 1.04;
@@ -974,9 +974,9 @@ function makeBoat(si) {
         const eye = new THREE.Mesh(shoulderG, eyeM); eye.position.set(0.17, 1.08, z * 0.07); eye.scale.set(0.2, 0.22, 0.2); R.add(eye);
       }
       const hr = new THREE.Mesh(hairG, hairM); hr.position.set(-0.01, 1.09, 0); hr.scale.set(1.0, 1.05, 0.95); R.add(hr);
-      const band = new THREE.Mesh(bandG, shirt); band.position.set(0.02, 1.13, 0); band.rotation.x = PI / 2; R.add(band);   // team headband
+      const band = new THREE.Mesh(bandG, teamM); band.position.set(0.02, 1.13, 0); band.rotation.x = PI / 2; R.add(band);   // team headband
       for (const z of [-1, 1]) { const sh = new THREE.Mesh(shoulderG, shirt); sh.position.set(0, 0.83, z * 0.24); R.add(sh); }
-      const armGeo = makeArmGeo(s.shirts[i % 2], skinM.color.getHex());
+      const armGeo = makeArmGeo(YEL, skinM.color.getHex());
       const armA = new THREE.Mesh(armGeo, ARM_MAT), armB = new THREE.Mesh(armGeo, ARM_MAT);
       const shaft = new THREE.Mesh(shaftG, shaftM); shaft.scale.y = L_SHAFT;
       const blade = new THREE.Mesh(bladeG, bladeM); blade.position.y = -0.5;
@@ -994,7 +994,7 @@ function makeBoat(si) {
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
   const SX = -8.5, SY = 0.55;
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
-  const stMat = M(s.shirts[0]);
+  const stMat = M(0x9fd62e);   // high-visibility vest like the coxswain in the photo
   const stTr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12).scale(0.9, 1, 1.15), M(0x2b2b45)); stTr.position.set(0, 0.42, 0); steer.add(stTr);   // sarong / trousers
   const stTor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.7, 14, 3).scale(0.85, 1, 1.18), stMat); stTor.position.set(0, 1.03, 0); steer.add(stTor);   // rounded torso
   mesh(GEO.cyl, skins[2], steer, 0.01, 1.4, 0, 0.055, 0.16, 0.055);                       // neck
