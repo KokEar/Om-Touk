@@ -13,7 +13,7 @@ const PI = Math.PI, TAU = Math.PI * 2;
 const RACE_LEN = 700;            // metres from the start line to the finish line
 const BOW = 10.4;                // bow-nose offset from boat centre
 const START_NOSE = -3;           // bow x at start (start line is x = 0)
-const LANES = [12, 6, 0, -6, -12];
+const LANES = [5, -5];
 const SHORE_Z = -46;
 const BANDS = [RACE_LEN / 3, RACE_LEN * 2 / 3];   // Start | Band 1 | Band 2 | Finish
 const VMIN = 7.5, VMAX = 21.5;   // boat speed range (m/s)
@@ -219,7 +219,7 @@ flagMat.onBeforeCompile = sh => {
 function bannerTexture(kh, en, w, h, finish, band) {
   return canvasTex(w, h, (c) => {
     const g = c.createLinearGradient(0, 0, 0, h);
-    if (band) { g.addColorStop(0, '#2f78e0'); g.addColorStop(1, '#123e8e'); } else { g.addColorStop(0, '#e0283f'); g.addColorStop(1, '#8c0c20'); }
+    g.addColorStop(0, '#e0283f'); g.addColorStop(1, '#8c0c20');
     c.fillStyle = g; c.fillRect(0, 0, w, h);
     c.strokeStyle = '#ffcf3f'; c.lineWidth = h * 0.07; c.strokeRect(h * 0.05, h * 0.05, w - h * 0.1, h - h * 0.1);
     c.strokeStyle = '#fff3c0'; c.lineWidth = 2; c.strokeRect(h * 0.14, h * 0.14, w - h * 0.28, h - h * 0.28);
@@ -508,41 +508,92 @@ function buildCrowdAndFlags() {
 let buoys, buoyBase = [];
 const gates = [];
 function buildCourse() {
-  const seps = [15, 9, 3, -3, -9, -15];
-  const xs = []; for (let x = -60; x <= RACE_LEN + 120; x += 5) xs.push(x);
+  const seps = [0];   // single divider between the Red and Blue lanes
+  const xs = []; for (let x = -60; x <= RACE_LEN + 120; x += 14) xs.push(x);
   const n = seps.length * xs.length;
   buoys = new THREE.InstancedMesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshLambertMaterial({ color: 0xffffff }), n);
   const col = new THREE.Color(), o = new THREE.Object3D(); let i = 0;
   seps.forEach((z, si) => xs.forEach((x, xi) => {
     buoyBase.push(x, z); o.position.set(x, 0, z); o.updateMatrix(); buoys.setMatrixAt(i, o.matrix);
-    buoys.setColorAt(i, col.setHex(xi % 2 ? 0xffffff : (si % 2 ? 0xe8232b : 0xffc62e))); i++;
+    buoys.setColorAt(i, col.setHex(0xe8232b)); i++;
   }));
   buoys.frustumCulled = false; scene.add(buoys);
 
   const gate = (x, kh, en, finish, band) => {
-    const g = new THREE.Group(); g.position.x = x; scene.add(g);
+    const g = new THREE.Group(); g.position.x = x; scene.add(g); gates.push(g);
     const topG = new THREE.Group(); g.add(topG); g.userData.top = topG;
     const tex = bannerTexture(kh, en, 1024, 180, finish, band);
     // big banner facing the camera, hung on the far side of the course
     const bx = (finish || band) ? -3 : -7;
     const fb = new THREE.Mesh(new THREE.PlaneGeometry(25, 4.4), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false }));
-    fb.position.set(bx, 10.2, -19.5); g.add(fb);
-    for (const dx of [-13.2, 13.2]) {
-      cyl(g, 0.4, 13, bx + dx, 6.5, -19.5, M(band ? 0x1f4fa8 : 0xb3202a)); mesh(GEO.cone, GOLD, g, bx + dx, 13.8, -19.5, 0.55, 1.4, 0.55);
+    fb.position.set(bx, 10.2, -19.5); if (!band && !finish) g.add(fb);   // no signboard on band or finish gates
+    if (false) for (const dx of [-13.2, 13.2]) {
+      cyl(g, 0.4, 13, bx + dx, 6.5, -19.5, M(0xb3202a)); mesh(GEO.cone, GOLD, g, bx + dx, 13.8, -19.5, 0.55, 1.4, 0.55);
     }
-    box(g, 26.5, 0.35, 0.35, bx, 12.6, -19.5, GOLD);
-    if (finish) for (const dx of [-13.2, 13.2]) { // chequered flags on the posts
+    if (false) box(g, 26.5, 0.35, 0.35, bx, 12.6, -19.5, GOLD);
+    if (false) for (const dx of [-13.2, 13.2]) { // chequered flags on the posts
       const ft = canvasTex(64, 64, (c) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c.fillStyle = (x + y) % 2 ? '#fff' : '#e0283f'; c.fillRect(x * 16, y * 16, 16, 16); } });
       const fl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.8, 6, 1).translate(1.2, 0, 0), flagMat.clone()); fl.material.map = ft; fl.position.set(bx + dx, 11.4, -19.5); g.add(fl);
     }
     // floating line on the water
     const lineTex = canvasTex(64, 64, (c, w, h) => {
-      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { c.fillStyle = ((x + y) % 2) ? (band ? '#2f78e0' : '#e0283f') : '#ffffff'; c.fillRect(x * 32, y * 32, 32, 32); }
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) { c.fillStyle = ((x + y) % 2) ? ('#e0283f') : '#ffffff'; c.fillRect(x * 32, y * 32, 32, 32); }
     });
     lineTex.wrapS = lineTex.wrapT = THREE.RepeatWrapping; lineTex.repeat.set(2, 22);
     const ln = new THREE.Mesh(new THREE.PlaneGeometry(3, 33).rotateX(-PI / 2), new THREE.MeshBasicMaterial({ map: lineTex, transparent: true, opacity: finish ? 0.95 : 0.8, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     ln.position.set(0, 0.32, 0); g.add(ln);
     g.userData.line = ln;
+    if (band) { // band markers: small red boats with red flags instead of the chequered strip
+      ln.visible = false;
+      const redM = new THREE.MeshLambertMaterial({ color: 0xd4162d }), darkM = M(0x7d0a1c);
+      const rf = canvasTex(64, 40, (c, w, h) => { c.fillStyle = '#e0283f'; c.fillRect(0, 0, w, h); });
+      for (const bz of [0]) {
+        const sb = new THREE.Group(); sb.position.set(0, 0.15, bz); g.add(sb);
+        box(sb, 3.6, 0.55, 1.0, 0, 0.1, 0, redM);
+        box(sb, 3.9, 0.12, 1.15, 0, 0.42, 0, GOLD);
+        for (const sx of [-1, 1]) { const e = box(sb, 0.9, 0.5, 0.8, sx * 2.05, 0.38, 0, redM); e.rotation.z = -sx * 0.5; }
+        box(sb, 3.0, 0.08, 0.7, 0, 0.5, 0, darkM);
+        cyl(sb, 0.05, 2.6, 0, 1.7, 0, M(0xe9c477));
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagMat.clone());
+        fl.material.map = rf; fl.position.set(0.05, 2.5, 0); sb.add(fl);
+      }
+    }
+    if (finish) { // five red boats (a bit bigger than the band markers), each with a drummer who beats once per arrival
+      const redM = new THREE.MeshLambertMaterial({ color: 0xd4162d }), darkM = M(0x7d0a1c);
+      const rf = canvasTex(64, 40, (c, w, h) => { c.fillStyle = '#e0283f'; c.fillRect(0, 0, w, h); });
+      const skinM = M(0xc58a5a), hairM = M(0x1a1a1a), stickM = M(0xe9c477);
+      g.userData.drums = [];
+      for (const bz of [10, -10]) {
+        const sb = new THREE.Group(); sb.position.set(0, 0.2, bz); sb.scale.setScalar(1.9); g.add(sb);
+        box(sb, 3.6, 0.55, 1.0, 0, 0.1, 0, redM);
+        box(sb, 3.9, 0.12, 1.15, 0, 0.42, 0, GOLD);
+        for (const sx of [-1, 1]) { const e = box(sb, 0.9, 0.5, 0.8, sx * 2.05, 0.38, 0, redM); e.rotation.z = -sx * 0.5; }
+        box(sb, 3.0, 0.08, 0.7, 0, 0.5, 0, darkM);
+        cyl(sb, 0.05, 2.6, 1.6, 1.8, 0, stickM);
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagMat.clone());
+        fl.material.map = rf; fl.position.set(1.65, 2.6, 0); sb.add(fl);
+        // drum
+        const dr = new THREE.Group(); dr.position.set(-0.55, 0.55, 0); sb.add(dr);
+        cyl(dr, 0.34, 0.5, 0, 0.27, 0, redM);
+        cyl(dr, 0.37, 0.06, 0, 0.04, 0, GOLD); cyl(dr, 0.37, 0.06, 0, 0.5, 0, GOLD);
+        cyl(dr, 0.31, 0.03, 0, 0.54, 0, M(0xf3e2b8));
+        // drummer (behind the drum, facing it)
+        const pp = new THREE.Group(); pp.position.set(0.15, 0.55, 0); sb.add(pp);
+        box(pp, 0.3, 0.5, 0.36, 0, 0.45, 0, M(0xe0283f));
+        box(pp, 0.28, 0.28, 0.28, 0, 0.84, 0, skinM);
+        box(pp, 0.3, 0.1, 0.3, 0, 0.98, 0, hairM);
+        const arms = [];
+        for (const az of [-0.22, 0.22]) {
+          const arm = new THREE.Group(); arm.position.set(0, 0.62, az); pp.add(arm);
+          box(arm, 0.5, 0.15, 0.15, -0.25, 0, 0, skinM);     // arm reaching toward the drum
+          box(arm, 0.5, 0.07, 0.07, -0.72, 0.0, 0, stickM);  // stick
+          mesh(GEO.sph, M(0xb3202a), arm, -0.98, 0, 0, 0.1, 0.1, 0.1);   // mallet head
+          arm.rotation.z = -0.95; arms.push(arm);
+        }
+        g.userData.drums.push({ dr, arms, pp, bz, hit: 0 });
+      }
+      ln.visible = false;
+    }
     return g;
   };
   gate(0, 'ចាប់ផ្ដើម', 'START', false);
@@ -1011,7 +1062,7 @@ const G = {
   finishWait: 0, demo: /[?&]demo/.test(location.search), resultsAt: 0, lastHud: 0, lastRank: 0
 };
 const boats = [];
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 2; i++) {
   const m = makeBoat(i);
   const b = Object.assign(m, { id: i, z: LANES[i], x: 0, v: 0, sync: 0.4, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0,
     human: false, auto: false, player: -1, ptr: 0, aiPtr: 0, ns: null, skill: 0.8, stats: { p: 0, g: 0, m: 0 }, lastHit: -9, name: SCHEMES[i], rank: 0, strokeT: 0, wakeLast: 0 });
@@ -1331,6 +1382,7 @@ function stepRace(dt) {
         if (SFX.ok()) SFX.tone('sine', 520, 880, SFX.ctx.currentTime, 0.3, 0.16);
       }
       if (!b.finished && b.x + BOW >= RACE_LEN) {
+        beatFinishDrum(b);
         b.finished = true; b.finishT = T - (b.x + BOW - RACE_LEN) / Math.max(b.v, 1);
         if (b.human) { SFX.fanfare(); showBanner('ដល់ទីបញ្ចប់!', 'FINISH!'); }
         if (b.human || order1(b)) for (let i = 0; i < 90; i++) emit(RACE_LEN + rr(-6, 6), rr(3, 9), b.z + rr(-6, 6), rr(-6, 8), rr(2, 11), rr(-4, 4), rr(1.4, 2.6), rr(0.35, 0.7), rnd(), 0.5 + rnd() * 0.5, rnd(), 6);
@@ -1349,6 +1401,11 @@ function stepRace(dt) {
     }
     if (G.state === 'race' && T > 140) finishRace();
   }
+}
+function beatFinishDrum(b) {   // only the drummer on the same side as the arriving boat strikes
+  const fg = gates.find(g => g.userData.drums); if (!fg) return;
+  fg.userData.drums.forEach(d => { if (d.bz * b.z > 0) d.hit = 1; });
+  if (SFX.ok()) { SFX.drum(SFX.ctx.currentTime, true); SFX.boom(SFX.ctx.currentTime); }
 }
 function order1(b) { return boats.every(o => o === b || !o.finished); }
 
@@ -1447,6 +1504,13 @@ function updateCamera(dt, wall) {
   if (G.humans.some(b => b.boostT > 0) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
   camera.lookAt(camLook);
   gates.forEach(g => { const far = Math.abs(camera.position.x - g.position.x) > 24; if (g.userData.near) g.userData.near.visible = far; if (g.userData.top) g.userData.top.visible = far; });
+  { const fg = gates.find(g => g.userData.drums); if (fg) {   // finish-boat drummers: one strike when THEIR side's boat arrives, otherwise rest
+    fg.userData.drums.forEach(d => {
+      d.hit = Math.max(0, d.hit - dt * 2.2);
+      const t = 1 - d.hit, sq = d.hit > 0 ? Math.max(0, 1 - Math.abs(t - 0.3) / 0.3) : 0, up = -1.1, down = 0.1;
+      d.dr.scale.set(1 + 0.06 * sq, 1 - 0.1 * sq, 1 + 0.06 * sq); d.pp.rotation.z = 0.12 * sq; d.pp.position.y = 0.55 - 0.05 * sq;
+      d.arms.forEach(a => { a.rotation.z = up + (down - up) * sq; });
+    }); } }
   camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-dt * 3)); camera.updateProjectionMatrix();
 }
 
