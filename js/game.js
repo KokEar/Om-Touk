@@ -583,12 +583,12 @@ function buildCourse() {
         box(pp, 0.28, 0.28, 0.28, 0, 0.84, 0, skinM);
         box(pp, 0.3, 0.1, 0.3, 0, 0.98, 0, hairM);
         const arms = [];
-        for (const az of [-0.22, 0.22]) {
+        for (const az of [-0.22, 0.22]) {   // arms[0] (z -0.22) is the drummer's RIGHT hand (he faces -x), arms[1] the left
           const arm = new THREE.Group(); arm.position.set(0, 0.62, az); pp.add(arm);
           box(arm, 0.5, 0.15, 0.15, -0.25, 0, 0, skinM);     // arm reaching toward the drum
           box(arm, 0.5, 0.07, 0.07, -0.72, 0.0, 0, stickM);  // stick
           mesh(GEO.sph, M(0xb3202a), arm, -0.98, 0, 0, 0.1, 0.1, 0.1);   // mallet head
-          arm.rotation.z = -0.95; arms.push(arm);
+          arm.rotation.z = az > 0 ? 1.3 : -0.95; arms.push(arm);
         }
         g.userData.drums.push({ dr, arms, pp, bz, hit: 0 });
       }
@@ -1476,8 +1476,37 @@ function updateVisuals(dt, wall) {
   }
 }
 
+const camera2 = new THREE.PerspectiveCamera(48, 1, 0.5, 2600);
+const camPos2 = new THREE.Vector3(0, 8, 40), camLook2 = new THREE.Vector3();
+let splitOn = false, camSnap2 = true;
+const splitLine = document.createElement('div');
+splitLine.style.cssText = 'position:fixed;top:0;bottom:0;left:50%;width:4px;margin-left:-2px;background:#ffc62e;box-shadow:0 0 0 1px #7d0a1c;z-index:5;pointer-events:none;display:none';
+document.body.appendChild(splitLine);
+// where a follow camera wants to be for the given boats; returns the target fov
+function camGoal(hs, aspect, des, look) {
+  let fov = aspect < 1.1 ? 62 : 48, cx = 0, cz = 0, mn = 1e9, mx = -1e9;
+  hs.forEach(b => { cx += b.x; cz += b.z; mn = Math.min(mn, b.x); mx = Math.max(mx, b.x); });
+  cx /= hs.length; cz /= hs.length;
+  const spread = mx - mn, two = hs.length > 1;
+  const dist = (aspect < 1.1 ? 36 : 23) + (two ? 5 : 0) + Math.min(spread, 40) * 0.45;
+  const lead = hs.reduce((m, b) => Math.max(m, b.v), 0);
+  des.set(cx + 13 + Math.min(spread, 40) * 0.1, 7.8 + dist * 0.06, cz + dist);
+  look.set(cx + 2.5, 1.8, cz - 3);
+  fov += lead * 0.22 + (hs.some(b => b.boostT > 0) ? 4 : 0);
+  if (G.state === 'results') { des.x += 10; des.y += 1; }
+  return fov;
+}
+
 function updateCamera(dt, wall) {
   if (G.freeCam) return;
+  // 1v1: split the screen in two (one boat per half) when the boats are far apart
+  const W = window.innerWidth, H = window.innerHeight;
+  if (G.humans.length > 1 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing')) {
+    const d = Math.abs(G.humans[0].x - G.humans[1].x);
+    if (!splitOn && d > 30) { splitOn = true; camSnap2 = true; camPos2.copy(camPos); camLook2.copy(camLook); }
+    else if (splitOn && d < 16) splitOn = false;
+  } else splitOn = false;
+  camera.aspect = camera2.aspect = splitOn ? (W / 2) / H : W / H;
   const aspect = camera.aspect;
   let des = new THREE.Vector3(), look = new THREE.Vector3(), fov = aspect < 1.1 ? 62 : 48;
   if (G.state === 'menu') {
@@ -1485,31 +1514,31 @@ function updateCamera(dt, wall) {
     des.set(-8 + Math.sin(a) * 8, 5.5 + Math.sin(a * 0.7) * 1.2, 31 + Math.cos(a) * 3);
     look.set(-27 + Math.sin(a * 0.8) * 3, 2.4, 5);
   } else {
-    const hs = G.humans.length ? G.humans : [boats[0]];
-    let cx = 0, cz = 0, mn = 1e9, mx = -1e9;
-    hs.forEach(b => { cx += b.x; cz += b.z; mn = Math.min(mn, b.x); mx = Math.max(mx, b.x); });
-    cx /= hs.length; cz /= hs.length;
-    const spread = mx - mn, two = hs.length > 1;
-    let dist = (aspect < 1.1 ? 36 : 23) + (two ? 5 : 0) + Math.min(spread, 40) * 0.45;
-    const lead = G.humans.length ? G.humans.reduce((m, b) => Math.max(m, b.v), 0) : 0;
-    des.set(cx + 13 + Math.min(spread, 40) * 0.1, 7.8 + dist * 0.06, cz + dist);
-    look.set(cx + 2.5, 1.8, cz - 3);
-    fov += lead * 0.22 + (G.humans.some(b => b.boostT > 0) ? 4 : 0);
-    if (G.state === 'results') { des.x += 10; des.y += 1; }
+    const hs = splitOn ? [G.humans[0]] : (G.humans.length ? G.humans : [boats[0]]);
+    fov = camGoal(hs, aspect, des, look);
   }
   const k = camSnap ? 1 : 1 - Math.exp(-dt * 3.2);
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
   camSnap = false;
   camera.position.copy(camPos);
-  if (G.humans.some(b => b.boostT > 0) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
+  if ((splitOn ? G.humans[0].boostT > 0 : G.humans.some(b => b.boostT > 0)) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
   camera.lookAt(camLook);
+  if (splitOn) {   // second camera follows the second player's boat
+    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([G.humans[1]], aspect, d2, l2);
+    const k2 = camSnap2 ? 1 : 1 - Math.exp(-dt * 3.2);
+    camPos2.lerp(d2, k2); camLook2.lerp(l2, camSnap2 ? 1 : 1 - Math.exp(-dt * 4)); camSnap2 = false;
+    camera2.position.copy(camPos2);
+    if (G.humans[1].boostT > 0 && G.state === 'race') { camera2.position.x += (Math.random() - .5) * 0.12; camera2.position.y += (Math.random() - .5) * 0.12; }
+    camera2.lookAt(camLook2);
+    camera2.fov = lerp(camera2.fov, f2, 1 - Math.exp(-dt * 3)); camera2.updateProjectionMatrix();
+  }
   gates.forEach(g => { const far = Math.abs(camera.position.x - g.position.x) > 24; if (g.userData.near) g.userData.near.visible = far; if (g.userData.top) g.userData.top.visible = far; });
   { const fg = gates.find(g => g.userData.drums); if (fg) {   // finish-boat drummers: one strike when THEIR side's boat arrives, otherwise rest
     fg.userData.drums.forEach(d => {
       d.hit = Math.max(0, d.hit - dt * 2.2);
       const t = 1 - d.hit, sq = d.hit > 0 ? Math.max(0, 1 - Math.abs(t - 0.3) / 0.3) : 0, up = -1.1, down = 0.1;
       d.dr.scale.set(1 + 0.06 * sq, 1 - 0.1 * sq, 1 + 0.06 * sq); d.pp.rotation.z = 0.12 * sq; d.pp.position.y = 0.55 - 0.05 * sq;
-      d.arms.forEach(a => { a.rotation.z = up + (down - up) * sq; });
+      d.arms.forEach((a, k) => { a.rotation.z = k ? 1.3 : up + (down - up) * sq; });   // right hand (arms[0]) strikes; left hand (arms[1]) hangs down at rest
     }); } }
   camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-dt * 3)); camera.updateProjectionMatrix();
 }
@@ -1533,12 +1562,18 @@ function frame(now) {
   updateVisuals(G.paused ? 0.0001 : dt, tw);
   if (!G.paused) updateParticles(dt);
   updateCamera(dt, wall);
-  // environment follows camera
-  const cs = 1700 / 250;
-  water.position.set(Math.round(camera.position.x / cs) * cs, 0, Math.round(camera.position.z / cs) * cs);
-  waterUniforms.uTime.value = tw; waterUniforms.uCam.value.copy(camera.position);
-  sky.position.copy(camera.position); cloudGroup.position.set(camera.position.x, 0, camera.position.z);
-  renderer.render(scene, camera);
+  // environment follows each camera; render one full view, or two half-screen views when split
+  const cs = 1700 / 250, W = window.innerWidth, H = window.innerHeight;
+  const renderView = (cam, vx, vw) => {
+    water.position.set(Math.round(cam.position.x / cs) * cs, 0, Math.round(cam.position.z / cs) * cs);
+    waterUniforms.uTime.value = tw; waterUniforms.uCam.value.copy(cam.position);
+    sky.position.copy(cam.position); cloudGroup.position.set(cam.position.x, 0, cam.position.z);
+    renderer.setViewport(vx, 0, vw, H); renderer.setScissor(vx, 0, vw, H);
+    pMat.uniforms.uPx.value = H * renderer.getPixelRatio() / (2 * Math.tan(cam.fov * PI / 360));
+    renderer.render(scene, cam);
+  };
+  if (splitOn) { renderer.setScissorTest(true); renderView(camera, 0, W / 2); renderView(camera2, W / 2, W / 2); splitLine.style.display = 'block'; }
+  else { renderer.setScissorTest(false); renderView(camera, 0, W); splitLine.style.display = 'none'; }
   // HUD
   if (G.state !== 'menu') {
     panels.forEach(p => drawTrack(p, G.T));
