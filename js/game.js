@@ -1355,18 +1355,20 @@ function setupRace() {
 
 function startRace() {
   SFX.init();
+  NET.waiting = false; clearTimeout(NET.waitTimer);
   NET.rmPending = NET.rmAsked = false; $('rematch').classList.add('hidden');
   setupRace();
   G.state = 'countdown';
   ['menu', 'results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.remove('hidden');
   $('btnPause').style.display = G.mode === 3 ? 'none' : '';
+  if (G.mode === 3) saveSess({ role: NET.role, code: NET.code, diff: G.diffKey });
   $('btnAgain').querySelector('i').textContent = 'Race again';
   camSnap = true;
 }
 
 function finishRace() {
-  G.state = 'results'; G.resultsAt = G.clock;
+  G.state = 'results'; G.resultsAt = G.clock; saveSess(null);
   const order = rankOrder();
   const tbl = $('resTable');
   const fmt = t => { const m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); };
@@ -1395,8 +1397,9 @@ function finishRace() {
   setTimeout(() => { if (G.state === 'results') { $('results').classList.remove('hidden'); $('hud').classList.add('hidden'); } }, 1600);
 }
 
-function toMenu() {
-  G.state = 'menu'; G.paused = false; netClose(); refreshMenu();
+function toMenu(keepRoom) {
+  NET.waiting = false; clearTimeout(NET.waitTimer);
+  G.state = 'menu'; G.paused = false; if (!keepRoom) { netClose(); saveSess(null); } refreshMenu();
   ['results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.add('hidden'); $('menu').classList.remove('hidden');
   boats.forEach((b, i) => { Object.assign(b, { x: START_NOSE - BOW - 14 - [0, 7, 3, 10, 5][i], z: LANES[i], v: 0, sync: 0.5, human: false, finished: false, boostT: 0, combo: 0 }); });
@@ -1782,13 +1785,23 @@ function netAttach(c) {
     if (NET.conn !== c) return;
     NET.ready = true; netSend({ t: 'hi' }); refreshMenu();
     netStatus(NET.role === 'host' ? 'Friend joined! Press START RACE.' : 'Connected! Waiting for the host to start…', 'ok');
+    if (NET.role === 'host' && NET.autoStart) { NET.autoStart = false; setTimeout(() => { if (NET.ready && NET.conn === c) hostStart(); }, 600); }
   };
   c.on('open', opened); if (c.open) opened();
-  c.on('data', netOnData);
+  c.on('data', m => { if (m && m.t === 'bye') gone(); else netOnData(m); });
   const gone = () => {
     if (NET.conn !== c) return;
     const racing = G.mode === 3 && (G.state === 'countdown' || G.state === 'race' || G.state === 'finishing');
-    if (racing) { showBanner('គូប្រជែងចាកចេញ', 'OPPONENT LEFT'); setTimeout(toMenu, 1800); }
+    if (racing) {
+      // opponent dropped (e.g. reloaded): stay on the race screen, frozen, and wait for them to come back
+      const role = NET.role, code = NET.code;
+      NET.conn = null; NET.ready = false; NET.waiting = true;
+      G.paused = true; if (SFX.ctx) SFX.ctx.suspend();
+      showCount('…', 'Opponent disconnected — waiting for them to come back');
+      if (role === 'host') NET.autoStart = true; else joinRoom(code, Date.now() + 50000);
+      clearTimeout(NET.waitTimer);
+      NET.waitTimer = setTimeout(() => { if (NET.waiting) { saveSess(null); toMenu(); } }, 50000);
+    }
     else if (G.state === 'results') { NET.conn = null; NET.ready = false; $('rematch').classList.add('hidden'); $('btnAgain').classList.add('hidden'); }
     else { netClose(); refreshMenu(); netStatus('Disconnected.', 'err'); }
   };
@@ -1798,31 +1811,45 @@ function netGuard() {
   if (typeof Peer === 'undefined') { netStatus('Online library failed to load (check your connection).', 'err'); return false; }
   return true;
 }
-function createRoom(tries) {
+function createRoom(tries, fixed) {
   netClose(); if (!netGuard()) return;
-  NET.role = 'host'; NET.myIdx = 0; NET.code = newCode(); refreshMenu(); netStatus('Creating room…');
+  NET.role = 'host'; NET.myIdx = 0; NET.code = fixed || newCode(); if (fixed) NET.autoStart = true; refreshMenu(); netStatus('Creating room…');
   const peer = NET.peer = new Peer('omtouk-' + NET.code);
   peer.on('open', () => { if (NET.peer === peer) netStatus('Share this code with your friend and wait for them to join…'); });
-  peer.on('connection', c => { if (NET.conn) { c.on('open', () => c.close()); return; } netAttach(c); });
+  peer.on('connection', c => {
+    if (NET.conn) {
+      const racing = NET.waiting || G.state === 'countdown' || G.state === 'race' || G.state === 'finishing';
+      if (!racing) { c.on('open', () => c.close()); return; }
+      // the other player reloaded: their old link is dead but not timed out yet, so replace it
+      const old = NET.conn; NET.conn = null; NET.ready = false; try { old.close(); } catch (e) { }
+      NET.autoStart = true;
+      if (!NET.waiting) { NET.waiting = true; G.paused = true; if (SFX.ctx) SFX.ctx.suspend(); showCount('…', 'Opponent reconnecting…'); }
+    }
+    netAttach(c);
+  });
+  peer.on('disconnected', () => { try { if (NET.peer === peer && !peer.destroyed) peer.reconnect(); } catch (e) { } });
   peer.on('error', e => {
     if (NET.peer !== peer) return;
-    if (e.type === 'peer-unavailable' || e.type === 'webrtc') return;   // a joiner dropped out mid-handshake: keep the room open
-    if (e.type === 'unavailable-id' && (tries || 0) < 5) { createRoom((tries || 0) + 1); return; }
+    if (e.type === 'peer-unavailable' || e.type === 'webrtc' || e.type === 'network' || e.type === 'socket-error' || e.type === 'socket-closed') return;   // a joiner dropped out mid-handshake: keep the room open
+    if (e.type === 'unavailable-id' && fixed && (tries || 0) < 20) { netClose(); setTimeout(() => createRoom((tries || 0) + 1, fixed), 1500); return; }
+    if (e.type === 'unavailable-id' && !fixed && (tries || 0) < 5) { createRoom((tries || 0) + 1); return; }
     netClose(); refreshMenu(); netStatus('Could not create room (' + e.type + ').', 'err');
   });
 }
-function joinRoom(code) {
+function joinRoom(code, retryUntil) {
   code = (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   if (code.length !== 5) { netStatus('Enter the 5-letter room code.', 'err'); return; }
   netClose(); if (!netGuard()) return;
   NET.role = 'guest'; NET.myIdx = 1; NET.code = code; refreshMenu(); netStatus('Joining room ' + code + '…');
   const peer = NET.peer = new Peer();
+  peer.on('disconnected', () => { try { if (NET.peer === peer && !peer.destroyed) peer.reconnect(); } catch (e) { } });
   peer.on('open', () => { if (NET.peer === peer) netAttach(peer.connect('omtouk-' + code, { reliable: true })); });
   peer.on('error', e => {
     if (NET.peer !== peer) return;
-    netClose(); refreshMenu(); netStatus(e.type === 'peer-unavailable' ? 'Room ' + code + ' not found.' : 'Could not join (' + e.type + ').', 'err');
+    if (retryUntil && Date.now() < retryUntil && e.type === 'peer-unavailable') { netClose(); setTimeout(() => { if (!NET.peer && G.mode === 3 && (G.state === 'menu' || NET.waiting || G.paused)) joinRoom(code, retryUntil); }, 2000); NET.role = 'guest'; NET.code = code; refreshMenu(); netStatus('Waiting for the host to come back…'); return; }
+    netClose(); saveSess(null); refreshMenu(); netStatus(e.type === 'peer-unavailable' ? 'Room ' + code + ' not found.' : 'Could not join (' + e.type + ').', 'err');
   });
-  setTimeout(() => { if (NET.peer === peer && !NET.ready) { netClose(); refreshMenu(); netStatus('Could not reach room ' + code + '.', 'err'); } }, 25000);
+  setTimeout(() => { if (NET.peer === peer && !NET.ready) { netClose(); saveSess(null); refreshMenu(); netStatus('Could not reach room ' + code + '.', 'err'); } }, 25000);
 }
 function hostStart() {
   if (NET.role !== 'host' || !NET.ready) return;
@@ -1852,6 +1879,9 @@ function netStep(b, dt) {
   b.sync = r.sy; b.combo = r.cb; b.maxCombo = r.mc; b.boostT = r.bt; b.score = r.sc; b.stats = { p: r.p, g: r.g, m: r.m };
   if (r.f && !b.finished) { b.finished = true; b.finishT = r.ft; beatFinishDrum(b); }
 }
+window.addEventListener('pagehide', () => {
+  if (NET.conn && G.mode === 3) { netSend({ t: 'bye' }); try { NET.conn.close(); } catch (e) { } }
+});
 $('btnCreate').onclick = () => createRoom(0);
 $('btnJoin').onclick = () => joinRoom($('joinCode').value);
 $('joinCode').addEventListener('keydown', e => { e.stopPropagation(); if (e.code === 'Enter') joinRoom($('joinCode').value); });
@@ -1859,10 +1889,35 @@ $('btnLeave').onclick = () => { netClose(); refreshMenu(); };
 $('btnCopy').onclick = () => { try { navigator.clipboard.writeText(NET.code); $('btnCopy').textContent = 'Copied!'; setTimeout(() => $('btnCopy').textContent = 'Copy', 1500); } catch (e) { } };
 
 /* ------------------------------------------------------------------ */
+/*  Reload recovery (online race interrupted by a page refresh)       */
+/* ------------------------------------------------------------------ */
+function saveSess(v) { try { v ? sessionStorage.setItem('omtouk-sess', JSON.stringify(v)) : sessionStorage.removeItem('omtouk-sess'); } catch (e) { } }
+function loadSess() { try { const v = JSON.parse(sessionStorage.getItem('omtouk-sess')); return v && /^[A-Z0-9]{5}$/.test(v.code) && (v.role === 'host' || v.role === 'guest') ? v : null; } catch (e) { return null; } }
+function checkInterrupted() {
+  const s = loadSess(); if (!s || G.demo) return;
+  // rebuild the race screen the player was on and freeze it under the dialog
+  G.mode = 3; NET.role = s.role; NET.myIdx = s.role === 'host' ? 0 : 1;
+  if (DIFFS[s.diff]) G.diffKey = s.diff;
+  $('segMode').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.mode === '3'));
+  updateCtrlHint(); setupRace(); NET.role = null;
+  G.state = 'countdown'; G.paused = true; camSnap = true;
+  $('menu').classList.add('hidden'); $('hud').classList.remove('hidden'); $('btnPause').style.display = 'none';
+  $('interrupt').classList.remove('hidden');
+  $('btnSurrender').onclick = () => { saveSess(null); $('interrupt').classList.add('hidden'); toMenu(); };
+  $('btnIntResume').onclick = () => {
+    $('interrupt').classList.add('hidden');
+    showCount('…', 'Reconnecting to your opponent');
+    setTimeout(() => { if (G.paused && G.state === 'countdown') { saveSess(null); toMenu(); } }, 50000);   // gave up waiting
+    if (s.role === 'host') createRoom(0, s.code); else joinRoom(s.code, Date.now() + 45000);
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /*  Boot                                                              */
 /* ------------------------------------------------------------------ */
 buildShore(); buildCrowdAndFlags(); buildCourse();
-toMenu();
+toMenu(true);
+checkInterrupted();
 resize();
 camPos.set(-8, 5.5, 31); camLook.set(-27, 2.4, 5);
 if (document.fonts && document.fonts.load) {
