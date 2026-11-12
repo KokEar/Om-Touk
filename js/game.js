@@ -1580,7 +1580,8 @@ function camGoal(hs, aspect, des, look) {
   hs.forEach(b => { cx += b.x; cz += b.z; mn = Math.min(mn, b.x); mx = Math.max(mx, b.x); });
   cx /= hs.length; cz /= hs.length;
   const spread = mx - mn, two = hs.length > 1;
-  const dist = (aspect < 1.1 ? 36 : 23) + (two ? 5 : 0) + Math.min(spread, 40) * 0.45;
+  let dist = (aspect < 1.1 ? 36 : 23) + (two ? 5 : 0) + Math.min(spread, 40) * 0.45;
+  if (aspect < 0.8) dist = Math.min(95, Math.max(dist, 22 / aspect));   // narrow view (phone split-screen): pull back so the whole boat fits across
   const lead = hs.reduce((m, b) => Math.max(m, b.v), 0);
   des.set(cx + 13 + Math.min(spread, 40) * 0.1, 7.8 + dist * 0.06, cz + dist);
   look.set(cx + 2.5, 1.8, cz - 3);
