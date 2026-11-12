@@ -123,7 +123,8 @@ kbd{display:inline-block;min-width:24px;padding:2px 6px;margin:1px;border-radius
   #hudBtns{top:calc(6px + 70px)}
   #hudBtns button{width:32px;height:32px}
   #panels{bottom:4px;gap:8px}
-  .panel{max-width:320px;padding:4px 8px;border-radius:12px}
+  .panel{max-width:min(620px,92vw);padding:4px 10px;border-radius:12px}
+  .panel canvas{height:clamp(44px,14vh,64px)}
   .panel .phead{font-size:11px;margin-bottom:2px}
   .panel .phead .pk{display:none}
   .panel .meters{margin-top:2px;font-size:10px}

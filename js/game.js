@@ -826,7 +826,11 @@ function makeApsara(styleIdx) {
   const tgt = V(), WX = new THREE.Vector3(1, 0, 0), wq = new THREE.Quaternion();
   const sm = (cur, t, k, dt) => cur.lerp(t, 1 - Math.exp(-k * dt));
   function update(ph, lift, dt) {
-    dt = Math.min(dt === undefined ? 0.016 : dt, 0.05);
+    dt = Math.min(dt === undefined || !(dt >= 0) ? 0.016 : dt, 0.05);
+    if (!isFinite(ph)) ph = 0;
+    // self-heal: a NaN in any low-pass filter would poison the pose forever and make the dancer vanish
+    let fs = 0; for (const k in F) fs += F[k].x + F[k].y + F[k].z;
+    if (!isFinite(fs) || !isFinite(wrist.f)) { for (const k in F) F[k].set(0, 0, 0); wrist.f = 0; }
     const s1 = Math.sin(ph), c1 = Math.cos(ph), sh = Math.sin(ph * 0.5);
     const hipY = 0.87 - st.flex * (1 - Math.cos(ph)), hipZ = st.sway * s1;
     pelvis.position.set(0, hipY, hipZ); sm(F.pe, tgt.set(0.05 * s1, st.twist * 0.5 * sh, -0.025 * s1), 6, dt); sm(F.pe2, F.pe, 6, dt); sm(F.pe3, F.pe2, 6, dt); pelvis.rotation.set(F.pe3.x, F.pe3.y, F.pe3.z);
@@ -878,6 +882,30 @@ function makeApsara(styleIdx) {
   return { root, update, speed: st.speed };
 }
 
+// merged, vertex-coloured limb in unit space (+Y = hand end): sleeve + tapered forearm + hand
+const _armCache = {};
+function makeArmGeo(shirtHex, skinHex) {
+  const key = shirtHex + '_' + skinHex; if (_armCache[key]) return _armCache[key];
+  const parts = [];
+  const add = (g, hex, x, y, z, sx, sy, sz) => { g = g.toNonIndexed(); g.scale(sx, sy, sz); g.translate(x, y, z); parts.push([g, new THREE.Color(hex)]); };
+  add(new THREE.CylinderGeometry(0.085, 0.08, 1, 8), shirtHex, 0, -0.27, 0, 1, 0.46, 1);     // sleeve over the upper arm
+  add(new THREE.CylinderGeometry(0.075, 0.062, 1, 8), skinHex, 0, -0.03, 0, 1, 0.1, 1);       // bare upper-arm bit under sleeve
+  add(new THREE.CylinderGeometry(0.06, 0.042, 1, 8), skinHex, 0, 0.24, 0, 1, 0.5, 1);         // forearm, tapering to the wrist
+  add(new THREE.SphereGeometry(0.075, 8, 6), skinHex, 0, -0.5, 0, 1, 0.7, 1);                 // shoulder / elbow roundness
+  add(new THREE.SphereGeometry(0.058, 8, 6), skinHex, 0, 0.5, 0, 1, 1.5, 0.8);                // hand
+  let n = 0; for (const [g] of parts) n += g.attributes.position.count;
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3); let o = 0;
+  for (const [g, c] of parts) {
+    pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3);
+    for (let i = 0; i < g.attributes.position.count; i++) { col[(o + i) * 3] = c.r; col[(o + i) * 3 + 1] = c.g; col[(o + i) * 3 + 2] = c.b; }
+    o += g.attributes.position.count;
+  }
+  const G2 = new THREE.BufferGeometry();
+  G2.setAttribute('position', new THREE.BufferAttribute(pos, 3)); G2.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); G2.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return (_armCache[key] = G2);
+}
+const ARM_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
+
 function makeBoat(si) {
   const s = SCHEMES[si];
   const root = new THREE.Group();
@@ -918,8 +946,8 @@ function makeBoat(si) {
   const rowers = [], pairs = 14;
   const shirtMats = s.shirts.map(c => M(c));
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
-  const hairM = M(0x1a1410);
-  const torsoGeo = new THREE.BoxGeometry(0.36, 0.72, 0.44), headG = new THREE.SphereGeometry(0.19, 10, 8);
+  const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
+  const torsoGeo = new THREE.CylinderGeometry(0.2, 0.145, 0.74, 14, 3).scale(0.85, 1, 1.18), neckG = new THREE.CylinderGeometry(0.055, 0.065, 0.16, 8), headG = new THREE.SphereGeometry(0.19, 10, 8);
   const hairG = new THREE.SphereGeometry(0.2, 10, 6, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 7, 5);
   const armG = new THREE.CylinderGeometry(0.07, 0.06, 1, 6), shaftG = new THREE.CylinderGeometry(0.035, 0.035, 1, 6), bladeG = new THREE.BoxGeometry(0.05, 0.6, 0.3);
   const bladeM = M(s.hull), shaftM = M(0xe9c477);
@@ -936,10 +964,20 @@ function makeBoat(si) {
       const R = new THREE.Group(); R.position.set(sx, 0.27, sd * seatZ); body.add(R);
       const shirt = shirtMats[i % 2];
       const t = new THREE.Mesh(torsoGeo, shirt); t.position.y = 0.5; R.add(t);
-      const hd = new THREE.Mesh(headG, pick(skins)); hd.position.set(0.03, 1.05, 0); R.add(hd);
-      const hr = new THREE.Mesh(hairG, hairM); hr.position.set(0.0, 1.08, 0); hr.rotation.x = 0; R.add(hr);
+      const nk = new THREE.Mesh(neckG, skins[0]); nk.position.set(0.01, 0.92, 0); R.add(nk);
+      const skinM = pick(skins);
+      const hd = new THREE.Mesh(headG, skinM); hd.position.set(0.03, 1.05, 0); hd.scale.set(0.95, 1.1, 0.88); R.add(hd);   // oval head
+      const jaw = new THREE.Mesh(headG, skinM); jaw.position.set(0.06, 0.97, 0); jaw.scale.set(0.62, 0.55, 0.6); R.add(jaw);  // chin
+      const nose = new THREE.Mesh(shoulderG, skinM); nose.position.set(0.2, 1.03, 0); nose.scale.set(0.5, 0.7, 0.45); R.add(nose);
+      for (const z of [-1, 1]) {
+        const ear = new THREE.Mesh(shoulderG, skinM); ear.position.set(0.0, 1.04, z * 0.165); ear.scale.set(0.35, 0.6, 0.3); R.add(ear);
+        const eye = new THREE.Mesh(shoulderG, eyeM); eye.position.set(0.17, 1.08, z * 0.07); eye.scale.set(0.2, 0.22, 0.2); R.add(eye);
+      }
+      const hr = new THREE.Mesh(hairG, hairM); hr.position.set(-0.01, 1.09, 0); hr.scale.set(1.0, 1.05, 0.95); R.add(hr);
+      const band = new THREE.Mesh(bandG, shirt); band.position.set(0.02, 1.13, 0); band.rotation.x = PI / 2; R.add(band);   // team headband
       for (const z of [-1, 1]) { const sh = new THREE.Mesh(shoulderG, shirt); sh.position.set(0, 0.83, z * 0.24); R.add(sh); }
-      const armA = new THREE.Mesh(armG, skins[0]), armB = new THREE.Mesh(armG, skins[0]);
+      const armGeo = makeArmGeo(s.shirts[i % 2], skinM.color.getHex());
+      const armA = new THREE.Mesh(armGeo, ARM_MAT), armB = new THREE.Mesh(armGeo, ARM_MAT);
       const shaft = new THREE.Mesh(shaftG, shaftM); shaft.scale.y = L_SHAFT;
       const blade = new THREE.Mesh(bladeG, bladeM); blade.position.y = -0.5;
       // blade is placed in the un-scaled shaft space → compensate for shaft scale
@@ -957,20 +995,25 @@ function makeBoat(si) {
   const SX = -8.5, SY = 0.55;
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
   const stMat = M(s.shirts[0]);
-  mesh(GEO.box, M(0x2b2b45), steer, 0, 0.42, 0, 0.3, 0.8, 0.4);                         // legs / trousers
-  mesh(GEO.box, stMat, steer, 0.0, 1.05, 0, 0.32, 0.62, 0.44);                          // torso
-  mesh(GEO.sph, skins[2], steer, 0.03, 1.55, 0, 0.19, 0.19, 0.19);                      // head
-  const stHair = new THREE.Mesh(hairG, hairM); stHair.position.set(-0.015, 1.56, 0); stHair.scale.setScalar(1.08); steer.add(stHair);   // full hair cap over the head
-  const stBun = mesh(GEO.sph, hairM, steer, -0.17, 1.6, 0, 0.09, 0.09, 0.09);                                                   // small knot at the back
-  const stBand = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.028, 6, 18), GOLD); stBand.position.set(0, 1.56, 0); stBand.rotation.x = PI / 2; steer.add(stBand);   // headband
+  const stTr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12).scale(0.9, 1, 1.15), M(0x2b2b45)); stTr.position.set(0, 0.42, 0); steer.add(stTr);   // sarong / trousers
+  const stTor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.7, 14, 3).scale(0.85, 1, 1.18), stMat); stTor.position.set(0, 1.03, 0); steer.add(stTor);   // rounded torso
+  mesh(GEO.cyl, skins[2], steer, 0.01, 1.4, 0, 0.055, 0.16, 0.055);                       // neck
+  mesh(GEO.sph, skins[2], steer, 0.03, 1.57, 0, 0.18, 0.215, 0.165);                      // oval head
+  mesh(GEO.sph, skins[2], steer, 0.07, 1.47, 0, 0.11, 0.1, 0.11);                       // jaw / chin
+  for (const z of [-1, 1]) mesh(GEO.sph, skins[2], steer, 0.0, 1.55, z * 0.16, 0.025, 0.06, 0.03);   // ears
+  const stHair = new THREE.Mesh(hairG, hairM); stHair.position.set(-0.04, 1.66, 0); stHair.scale.set(1.1, 0.95, 1.08); steer.add(stHair);   // crown of hair, kept above the eyes
+  mesh(GEO.sph, hairM, steer, -0.09, 1.57, 0, 0.14, 0.2, 0.17);                                                                      // hair behind the ears down to the nape
+  const stBun = mesh(GEO.sph, hairM, steer, -0.2, 1.7, 0, 0.1, 0.1, 0.1);                                                          // top-knot at the back
+  const stBand = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.025, 6, 18), GOLD); stBand.position.set(0, 1.64, 0); stBand.rotation.x = PI / 2; steer.add(stBand);   // headband at the hairline
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x111111), steer, 0.2, 1.57, z * 0.075, 0.03, 0.03, 0.03);   // eyes look toward the bow
   mesh(GEO.sph, skins[2], steer, 0.22, 1.5, 0, 0.04, 0.04, 0.04);                                         // nose
   for (const z of [-1, 1]) mesh(GEO.sph, stMat, steer, 0, 1.3, z * 0.25, 0.12, 0.12, 0.12);
   const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1, 8), M(0xe9c477)); body.add(oarShaft);
   const oarBlade = mesh(GEO.box, M(s.hull), body, 0, 0, 0, 0.07, 0.9, 0.34);
-  const stArmG = new THREE.CylinderGeometry(0.065, 0.055, 1, 8);
-  const stArms = [0, 1].map(() => [new THREE.Mesh(stArmG, skins[2]), new THREE.Mesh(stArmG, skins[2])]);
+  const stUpG = new THREE.CylinderGeometry(0.085, 0.07, 1, 8), stForeG = new THREE.CylinderGeometry(0.06, 0.042, 1, 8);
+  const stArms = [0, 1].map(() => [new THREE.Mesh(stUpG, stMat), new THREE.Mesh(stForeG, skins[2])]);   // sleeve + bare forearm
   stArms.forEach(p => p.forEach(m => body.add(m)));
+  const stHands = [0, 1].map(() => { const h = new THREE.Mesh(GEO.sph, skins[2]); h.scale.set(0.05, 0.08, 0.04); body.add(h); return h; });
   const sV = [0, 1, 2, 3, 4].map(() => new THREE.Vector3()), sdir = new THREE.Vector3();
   const steerUpdate = (t) => {
     const sweep = Math.sin(t);
@@ -983,9 +1026,9 @@ function makeBoat(si) {
     steer.rotation.y = 0.05 * sweep;
     const shR = new THREE.Vector3(SX, SY + 1.3, 0.25), shL = new THREE.Vector3(SX, SY + 1.3, -0.25), el = new THREE.Vector3(), wr = new THREE.Vector3();
     ik2(shR, G, 0.32, 0.32, new THREE.Vector3(-0.2, -0.8, 0.6), el, wr);           // right hand steers the oar
-    aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr);
+    aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr); stHands[0].position.copy(wr);
     ik2(shL, sV[3].set(SX + 0.18, SY + 0.85, -0.3), 0.32, 0.32, new THREE.Vector3(-0.1, -0.5, -1), el, wr);   // left hand rests on the hip
-    aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr);
+    aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr); stHands[1].position.copy(wr);
   };
   steerUpdate(0);
   const steerArms = [];
