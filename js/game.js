@@ -11,7 +11,8 @@
 /* ------------------------------------------------------------------ */
 const PI = Math.PI, TAU = Math.PI * 2;
 const RACE_LEN = 700;            // metres from the start line to the finish line
-const BOW = 10.4;                // bow-nose offset from boat centre
+const HL = 10.5;                 // hull half-length (m)
+const BOW = HL + 2;               // bow-nose offset from boat centre
 const START_NOSE = -3;           // bow x at start (start line is x = 0)
 const LANES = [5, -5];
 const SHORE_Z = -46;
@@ -621,14 +622,14 @@ function buildCourse() {
 function hullGeometry() {
   const N = 72, Mm = 14, pos = [], uv = [], idx = [];
   for (let i = 0; i <= N; i++) {
-    const u = -1 + 2 * i / N, au = Math.abs(u), x = u * 8.4;
+    const u = -1 + 2 * i / N, au = Math.abs(u), x = u * HL;
     const w = 0.12 + 0.88 * Math.pow(1 - Math.pow(au, 3.0), 0.7);
     const top = 0.82 + 1.2 * Math.pow(au, 4.5);
     const d = 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
       pos.push(x, top - d * Math.sin(th), -w * Math.cos(th));
-      uv.push(i / N * 9, j / Mm);
+      uv.push(i / N * 11, j / Mm);
     }
   }
   for (let i = 0; i < N; i++) for (let j = 0; j < Mm; j++) {
@@ -850,17 +851,33 @@ function makeBoat(si) {
   const inner = new THREE.Mesh(HULL_GEO, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide }));
   inner.scale.set(0.992, 0.97, 0.9); inner.position.y = 0.05; body.add(inner);
 
+  // deck floor inside the hull, just above the waterline, so no water shows through the open hull
+  {
+    const YD = 0.42, N = 60, pos = [], idx = [];
+    for (let i = 0; i <= N; i++) {
+      const x = -HL + 2 * HL * i / N, hu = Math.abs(x / HL);
+      const hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
+      const top = 0.82 + 1.2 * Math.pow(hu, 4.5), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
+      const sn = clamp((top - YD) / hd, 0, 1), w = hw * Math.sqrt(1 - sn * sn) * 0.995;
+      pos.push(x, YD, -w, x, YD, w);
+    }
+    for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const dg = new THREE.BufferGeometry();
+    dg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); dg.setIndex(idx); dg.computeVertexNormals();
+    body.add(new THREE.Mesh(dg, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide })));
+  }
+
   // simple gilded prow and stern posts (no dragon head / tail)
   for (const sx of [-1, 1]) {
-    const f = mesh(GEO.cone, GOLD, body, sx * 8.45, 2.15, 0, 0.17, 0.7, 0.17);
+    const f = mesh(GEO.cone, GOLD, body, sx * (HL + 0.05), 2.15, 0, 0.17, 0.7, 0.17);
     f.rotation.z = -sx * 0.5;
-    mesh(GEO.sph, GOLD, body, sx * 8.4, 1.9, 0, 0.14, 0.14, 0.14);
+    mesh(GEO.sph, GOLD, body, sx * HL, 1.9, 0, 0.14, 0.14, 0.14);
   }
   const head = new THREE.Group(); body.add(head);
 
   // thwarts
   const wood = M(0xa9794a);
-  const rowers = [], pairs = 10;
+  const rowers = [], pairs = 14;
   const shirtMats = s.shirts.map(c => M(c));
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410);
@@ -870,9 +887,9 @@ function makeBoat(si) {
   const bladeM = M(s.hull), shaftM = M(0xe9c477);
   const L_SHAFT = 1.7;
   for (let i = 0; i < pairs; i++) {
-    const sx = 5.0 - i * 1.04;
+    const sx = 6.76 - i * 1.04;
     // keep every rower inside the hull: narrow the seat spacing where the hull narrows
-    const hu = Math.abs(sx / 8.4), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
+    const hu = Math.abs(sx / HL), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
     const htop = 0.82 + 1.2 * Math.pow(hu, 4.5), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
     const sn = clamp((htop - 0.27) / hd, 0, 0.98), halfW = hw * Math.sqrt(1 - sn * sn);
     const seatZ = clamp(halfW - 0.36, 0.26, 0.52);
@@ -895,11 +912,11 @@ function makeBoat(si) {
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
   const apsara = makeApsara(si);
-  const cap = apsara.root; cap.position.set(6.6, 0.93, 0); cap.scale.setScalar(0.85); body.add(cap);
+  const cap = apsara.root; cap.position.set(8.7, 0.93, 0); cap.scale.setScalar(0.85); body.add(cap);
   const capT = null, capArms = [];
 
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
-  const SX = -6.4, SY = 0.55;
+  const SX = -8.5, SY = 0.55;
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
   const stMat = M(s.shirts[0]);
   mesh(GEO.box, M(0x2b2b45), steer, 0, 0.42, 0, 0.3, 0.8, 0.4);                         // legs / trousers
@@ -920,9 +937,9 @@ function makeBoat(si) {
   const steerUpdate = (t) => {
     const sweep = Math.sin(t);
     // oar is held outboard of the hull so it never passes through the gunwale
-    sdir.set(-0.8, -0.55, 0.12 + 0.22 * sweep).normalize();
+    sdir.set(-0.7, -0.75, 0.12 + 0.22 * sweep).normalize();
     const G = sV[0].set(SX - 0.1, 1.5, 0.84 + 0.1 * sweep);
-    const tip = sV[1].copy(G).addScaledVector(sdir, 2.7), hnd = sV[2].copy(G).addScaledVector(sdir, -0.35);
+    const tip = sV[1].copy(G).addScaledVector(sdir, 2.2), hnd = sV[2].copy(G).addScaledVector(sdir, -0.35);
     aimV(oarShaft, hnd, tip);
     oarBlade.position.copy(tip).addScaledVector(sdir, -0.3); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
     steer.rotation.y = 0.05 * sweep;
@@ -1197,7 +1214,7 @@ function updateHud() {
   panels.forEach(p => {
     const b = p.boat;
     p.sync.style.width = (b.sync * 100).toFixed(0) + '%';
-    p.spd.textContent = Math.round(b.v * 2.6) + ' km/h';
+    p.spd.textContent = Math.min(40, Math.round(b.v * 1.63)) + ' km/h';
     p.cmb.textContent = b.combo > 1 ? '×' + b.combo : '';
     p.el.classList.toggle('boost', b.boostT > 0);
   });
@@ -1428,11 +1445,11 @@ function updateVisuals(dt, wall) {
   const racing = G.state === 'race' || G.state === 'finishing' || G.state === 'results';
   for (const b of boats) {
     // waves → pose
-    const h0 = waveH(b.x, b.z, tw), hf = waveH(b.x + 2.5, b.z, tw), hb = waveH(b.x - 2.5, b.z, tw), hl = waveH(b.x, b.z - 1, tw), hr = waveH(b.x, b.z + 1, tw);
-    const pitch = Math.atan2(hf - hb, 5) * 1.2, roll = -Math.atan2(hr - hl, 2) * 1.0;
+    const h0 = waveH(b.x, b.z, tw), hf = waveH(b.x + HL * 0.8, b.z, tw), hb = waveH(b.x - HL * 0.8, b.z, tw), hl = waveH(b.x, b.z - 1, tw), hr = waveH(b.x, b.z + 1, tw);
+    const pitch = Math.atan2(hf - hb, HL * 1.6) * 1.0, roll = -Math.atan2(hr - hl, 2) * 1.0;
     const sq = clamp(b.v / VMAX, 0, 1);
     b.root.position.set(b.x, h0 - 0.12, b.z);
-    b.root.rotation.set(roll * 0.8, 0, pitch + sq * 0.025);
+    b.root.rotation.set(roll * 0.8, 0, pitch + sq * 0.008);
     // strokes
     let mode = 0, u = 0;
     const active = (G.state === 'race' || G.state === 'finishing') && !b.finished || (G.state === 'results' && !b.finished);
@@ -1472,7 +1489,7 @@ function updateVisuals(dt, wall) {
       const n = b.v * dt * 2.2; let cnt = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
       while (cnt-- > 0) {
         const sd = Math.random() < 0.5 ? -1 : 1;
-        emit(b.x + 7.2 + rr(0, 1.4), 0.08, b.z + sd * 0.5, rr(-3, 0), rr(1.6, 3.4), sd * rr(1.4, 3.2), rr(0.35, 0.7), rr(0.3, 0.6), 0.92, 0.98, 1, 10);
+        emit(b.x + 9.3 + rr(0, 1.4), 0.08, b.z + sd * 0.5, rr(-3, 0), rr(1.6, 3.4), sd * rr(1.4, 3.2), rr(0.35, 0.7), rr(0.3, 0.6), 0.92, 0.98, 1, 10);
       }
       const n2 = b.v * dt * 1.6; cnt = Math.floor(n2) + (Math.random() < n2 % 1 ? 1 : 0);
       while (cnt-- > 0) { const sd = Math.random() < 0.5 ? -1 : 1; emit(b.x + rr(-7, 7), 0.12, b.z + sd * rr(0.95, 1.3), -b.v * 0.45, 0.05, sd * rr(0.2, 0.9), rr(0.9, 1.5), rr(0.7, 1.1), 0.95, 1, 1, 0); }
