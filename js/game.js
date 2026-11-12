@@ -36,7 +36,7 @@ const FONT_B = "'Kantumruy Pro','Battambang','Noto Sans Khmer',sans-serif";
 const DIFFS = {
   easy:   { key: 'easy',   bpm: 84,  perfect: 0.095, good: 0.18, ai: [0.60, 0.68, 0.75, 0.81], aiPerf: 0.35, kh: 'ងាយ',   en: 'Easy'   },
   normal: { key: 'normal', bpm: 100, perfect: 0.072, good: 0.145, ai: [0.74, 0.80, 0.86, 0.91], aiPerf: 0.50, kh: 'មធ្យម', en: 'Normal' },
-  hard:   { key: 'hard',   bpm: 116, perfect: 0.056, good: 0.115, ai: [0.85, 0.90, 0.94, 0.97], aiPerf: 0.65, kh: 'ពិបាក', en: 'Hard', half: true }
+  hard:   { key: 'hard',   bpm: 116, perfect: 0.056, good: 0.115, ai: [0.90, 0.94, 0.97, 0.985], aiPerf: 0.78, kh: 'ពិបាក', en: 'Hard', half: true }
 };
 
 const SCHEMES = [
@@ -591,6 +591,10 @@ function buildCourse() {
         box(pp, 0.3, 0.5, 0.36, 0, 0.45, 0, M(0xe0283f));
         box(pp, 0.28, 0.28, 0.28, 0, 0.84, 0, skinM);
         box(pp, 0.3, 0.1, 0.3, 0, 0.98, 0, hairM);
+        for (const lz of [-0.1, 0.1]) {   // legs + feet (feet point toward the drum)
+          box(pp, 0.13, 0.24, 0.14, 0, 0.14, lz, M(0x2a2a35));
+          box(pp, 0.26, 0.07, 0.15, -0.06, 0.035, lz, M(0x1a1a1a));
+        }
         const arms = [];
         for (const az of [-0.22, 0.22]) {   // arms[0] (z -0.22) is the drummer's RIGHT hand (he faces -x), arms[1] the left
           const arm = new THREE.Group(); arm.position.set(0, 0.62, az); pp.add(arm);
@@ -1268,6 +1272,7 @@ function setupRace() {
   G.T = -3 * G.I; G.audStep = -6; G.cdShown = -9; G.finishWait = 0; G.paused = false;
   G.humans = [];
   const aiSkills = D.ai.slice();
+  if (D.key === 'hard') aiSkills.reverse();   // 1v1 has a single AI: on Hard it gets the strongest skill, not the weakest
   let ai = 0;
   boats.forEach((b, i) => {
     const human = i === 0 || (G.mode === 2 && i === 1);
