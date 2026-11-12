@@ -155,3 +155,4 @@ button.big.green:active{box-shadow:0 1px 0 #0a5324}
 .codewrap:focus-within{border-color:var(--gold)}
 .codewrap input{flex:0 0 auto;border:0;background:transparent;padding:0;line-height:1.2}
 .codekh{color:var(--cream)}
+.olstatus:empty{display:none}
