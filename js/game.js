@@ -382,11 +382,21 @@ function hipGeo(w, d, h) {
   return g;
 }
 function chofa(parent, x, y, z, sx, sz, s) {
-  // upswept gold horn at a roof corner, leaning outwards
-  const h = mesh(GEO.cone, GOLD, parent, x, y + 0.9 * s, z, 0.18 * s, 1.8 * s, 0.18 * s);
-  h.rotation.z = -0.7 * sx; h.rotation.x = 0.7 * sz;
-  const t = mesh(GEO.cone, GOLD, parent, x + sx * 0.75 * s, y + 1.9 * s, z + sz * 0.75 * s, 0.1 * s, 0.9 * s, 0.1 * s);
-  t.rotation.z = -1.2 * sx; t.rotation.x = 1.2 * sz;
+  // curved Khmer chofa horn: tapering segments sweeping up and outward, tip curling back
+  const pts = [];
+  for (let i = 0; i <= 7; i++) {
+    const t = i / 7;
+    pts.push(new THREE.Vector3(x + sx * s * (1.5 * Math.sin(t * 1.9)), y + s * 2.6 * t, z + sz * s * (1.5 * Math.sin(t * 1.9))));
+  }
+  for (let i = 0; i < 7; i++) {
+    const a = pts[i], b = pts[i + 1], len = a.distanceTo(b);
+    const r = 0.26 * s * (1 - i / 8);
+    const m = new THREE.Mesh(GEO.cone, GOLD);
+    m.scale.set(r, len * 1.05, r);
+    m.position.copy(a).add(b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    parent.add(m);
+  }
 }
 function palaceTier(g, w, d, h, y, roofCol) {
   mesh(hipGeo(w, d, h), new THREE.MeshLambertMaterial({ color: roofCol, side: THREE.DoubleSide }), g, 0, y, 0);
@@ -396,63 +406,135 @@ function palaceTier(g, w, d, h, y, roofCol) {
   box(g, 0.5, 0.4, d, w / 2, y + 0.1, 0, GOLD);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) chofa(g, sx * (w / 2 + 0.2), y + 0.3, sz * (d / 2 + 0.2), sx, sz, 2.0);
 }
+function spire(g, x, y, z, base, tiers, th) {
+  // slender tiered Khmer prasat spire: stacked narrowing square tiers with gold rings, ending in a needle
+  const mats = [GOLD, M(0xd9962a)];
+  let yy = y;
+  for (let i = 0; i < tiers; i++) {
+    const rb = base * (1 - i / (tiers + 2)), rt = rb * 0.8;
+    mesh(new THREE.CylinderGeometry(rt, rb, th, 4, 1).rotateY(PI / 4), mats[i % 2], g, x, yy + th / 2, z);
+    mesh(new THREE.CylinderGeometry(rb * 0.92, rb * 1.08, th * 0.16, 4, 1).rotateY(PI / 4), GOLD, g, x, yy + th * 0.08, z);
+    yy += th;
+  }
+  mesh(GEO.sph, M(0xfff4d0), g, x, yy + 0.3, z, 0.5 * base * 0.3 + 0.2);
+  mesh(GEO.cone, GOLD, g, x, yy + 0.4 + th * 1.5, z, 0.22, th * 3, 0.22);
+  return yy;
+}
+function gableRoof(g, w, d, h, x, y, z, roofCol, faceScale) {
+  // gable-ended roof (ridge along z, gable faces the river) with a gold carved pediment and horn-like chofa on the rakes
+  const sh = new THREE.Shape(); sh.moveTo(-w / 2, 0); sh.lineTo(w / 2, 0); sh.lineTo(0, h); sh.closePath();
+  const roof = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: false }), M(roofCol, { side: THREE.DoubleSide }));
+  roof.position.set(x, y, z - d / 2); g.add(roof);
+  const f = faceScale || 0.84;
+  const sh2 = new THREE.Shape(); sh2.moveTo(-w / 2 * f, 0.4); sh2.lineTo(w / 2 * f, 0.4); sh2.lineTo(0, h * f + 0.2); sh2.closePath();
+  const face = new THREE.Mesh(new THREE.ExtrudeGeometry(sh2, { depth: 0.5, bevelEnabled: false }), GOLD);
+  face.position.set(x, y, z + d / 2 + 0.05); g.add(face);
+  const sh3 = new THREE.Shape(); sh3.moveTo(-w / 2 * f * 0.7, 0.9); sh3.lineTo(w / 2 * f * 0.7, 0.9); sh3.lineTo(0, h * f * 0.7 + 0.6); sh3.closePath();
+  const inner = new THREE.Mesh(new THREE.ExtrudeGeometry(sh3, { depth: 0.3, bevelEnabled: false }), M(0xb97a1c));
+  inner.position.set(x, y, z + d / 2 + 0.5); g.add(inner);
+  // rake boards (dark green + gold) on both slopes, front and back
+  const ang = Math.atan2(h, w / 2), len = Math.hypot(w / 2, h);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const b = box(g, len, 0.5, 0.7, x + sx * w / 4, y + h / 2 + 0.2, z + sz * (d / 2 + 0.2), M(0x1d5a4a));
+    b.rotation.z = -sx * ang;
+    const t = box(g, len, 0.3, 0.9, x + sx * w / 4, y + h / 2 + 0.5, z + sz * (d / 2 + 0.2), GOLD);
+    t.rotation.z = -sx * ang;
+    // chofa horns curling up along the slope
+    for (let i = 1; i <= 3; i++) {
+      const px = sx * (w / 2) * (i / 3.6), py = h * (1 - i / 3.6);
+      const c = mesh(GEO.cone, GOLD, g, x + px + sx * 0.5, y + py + 1.2, z + sz * (d / 2 + 0.3), 0.2, 2.0, 0.2);
+      c.rotation.z = -sx * 0.5;
+    }
+  }
+  chofa(g, x - w / 2, y + 0.4, z + d / 2, -1, 1, 1.4); chofa(g, x + w / 2, y + 0.4, z + d / 2, 1, 1, 1.4);
+}
+function guardHouse(g, x, z) {
+  box(g, 5, 0.6, 5, x, 0.3, z, M(0xe8e0c8));
+  box(g, 3.6, 4.6, 3.6, x, 2.9, z, M(0xd9962a));
+  box(g, 1.2, 2.4, 0.2, x, 2.2, z + 1.85, M(0x7a3c1c));
+  mesh(GEO.cone4, GOLD, g, x, 5.2, z, 3.2, 2.0, 3.2);
+  mesh(GEO.cone4, M(0xd9962a), g, x, 6.6, z, 2.2, 1.8, 2.2);
+  spire(g, x, 7.8, z, 1.1, 5, 0.9);
+}
+function stupaFinial(g, x, y, z, s) {
+  // small white tiered stupa seen on the gate and wall
+  const w = M(0xf7f2e2);
+  box(g, 1.6 * s, 0.4 * s, 1.6 * s, x, y + 0.2 * s, z, w);
+  for (let i = 0; i < 4; i++) mesh(new THREE.CylinderGeometry((0.5 - i * 0.08) * s, (0.8 - i * 0.12) * s, 0.55 * s, 4, 1).rotateY(PI / 4), w, g, x, y + (0.7 + i * 0.5) * s, z);
+  mesh(GEO.cone, w, g, x, y + 3.1 * s, z, 0.14 * s, 1.2 * s, 0.14 * s);
+}
 function makePalace() {
+  // Chanchhaya-style open pavilion (Royal Palace, Phnom Penh): front faces +z
   const g = new THREE.Group();
-  const cream = M(0xf6d98a), slate = M(0x3f4d4d), maroon = M(0x7a1620), ochre = M(0xc9892a), sand = M(0xf2c46a);
-  // podium and main walls
-  box(g, 74, 1.4, 30, 0, 0.7, 0, ochre);
-  box(g, 72, 1.4, 28, 0, 2.1, 0, M(0xe0a63a));
-  box(g, 68, 5, 24, 0, 5.3, 0, sand);
-  box(g, 68.6, 0.8, 24.6, 0, 8.0, 0, M(0xb5b0a0));
-  box(g, 70, 0.5, 26, 0, 8.65, 0, sand);
-  for (let x = -30; x <= 30; x += 5) {                           // front windows
-    if (Math.abs(x) < 7) continue;
-    box(g, 1.4, 2.4, 0.3, x, 5.6, 12.1, slate);
-    box(g, 1.9, 0.4, 0.5, x, 7.0, 12.15, GOLD);
+  const white = M(0xf4efe0), cream = M(0xf0dfae), shade = M(0xd9d2bc), yellow = M(0xf2b52a), green = M(0x1d5a4a), brown = M(0x6e2f1a), roofG = M(0xc98a22, { side: THREE.DoubleSide });
+  // courtyard + low yellow wall with white crenellations along the front
+  box(g, 90, 0.8, 44, 0, 0.4, 2, M(0xe8b830));
+  box(g, 90, 3.0, 1.2, 0, 2.3, 24, yellow);
+  box(g, 90, 0.5, 1.6, 0, 3.9, 24, white);
+  for (let x = -44; x <= 44; x += 2.0) { if (Math.abs(x) < 4) continue; box(g, 1.1, 0.9, 0.9, x, 4.6, 24, white); mesh(GEO.sph, white, g, x, 5.1, 24, 0.55, 0.5, 0.4); }
+  // gate houses at both ends of the wall
+  for (const sx of [-1, 1]) {
+    const x = sx * 34;
+    box(g, 5, 6, 3.4, x, 3.8, 24, yellow); box(g, 5.6, 0.6, 4, x, 7.0, 24, white);
+    box(g, 1.8, 3.4, 0.3, x, 2.5, 25.8, M(0x4f9fa6));
+    mesh(GEO.cone4, white, g, x, 7.2, 24, 3.4, 3.2, 2.4);
+    mesh(GEO.cone, GOLD, g, x, 10.4, 24, 0.2, 2.4, 0.2);
   }
-  box(g, 8, 5, 0.4, 0, 5.3, 12.1, maroon);                        // red gate
-  for (let i = -3; i <= 3; i++) mesh(GEO.sph, GOLD, g, i * 1.0, 5.3 + (i % 2) * 0.8, 12.35, 0.22, 0.22, 0.1);
-  box(g, 12, 0.7, 3, 0, 0.35, 16.4, M(0xd9a441)); box(g, 10, 0.7, 2, 0, 1.05, 16.0, M(0xe0a63a)); // entrance steps
-  box(g, 68, 0.9, 0.35, 0, 9.5, 12.5, M(0xf4ead2));               // balustrade
-  box(g, 68, 0.9, 0.35, 0, 9.5, -12.5, M(0xf4ead2));
-  for (let x = -34; x <= 34; x += 4) box(g, 0.4, 1.1, 0.5, x, 9.5, 12.5, M(0xf4ead2));
-  // colonnade
-  let k = 0;
-  for (let x = -33; x <= 33.01; x += 3.3, k++) {
-    if (Math.abs(x) < 9) continue;
-    const m = (k % 3 === 1) ? slate : cream;
-    cyl(g, 0.45, 8.6, x, 13.2, 10.8, m);
-    cyl(g, 0.45, 8.6, x, 13.2, -10.8, m);
+  // white lamp posts flanking the central path
+  for (const sx of [-1, 1]) {
+    cyl(g, 0.35, 8, sx * 17, 4.5, 26, white); mesh(GEO.sph, white, g, sx * 17, 8.8, 26, 0.9, 0.9, 0.9);
+    mesh(GEO.cone, GOLD, g, sx * 17, 10.4, 26, 0.5, 2, 0.5);
   }
-  for (const sx of [-1, 1]) for (let z = -7; z <= 7; z += 3.5) cyl(g, 0.45, 8.6, sx * 33, 13.2, z, cream);
-  box(g, 72, 1, 26, 0, 17.8, 0, M(0xd9a441));                     // entablature
-  // stepped tiered roofs
-  palaceTier(g, 80, 32, 5.6, 18.2, 0xb8862e);
-  box(g, 52, 3, 20, 0, 24.2, 0, M(0xc8902f)); box(g, 53, 0.5, 21, 0, 25.8, 0, GOLD);
-  palaceTier(g, 56, 22, 5.0, 25.8, 0xb8862e);
-  box(g, 28, 3, 15, 0, 30.5, 0, M(0xc8902f)); box(g, 29, 0.5, 16, 0, 32.1, 0, GOLD);
-  palaceTier(g, 32, 17, 4.4, 32.1, 0x9a6a26);
-  // central porch: two cream pillars, balcony, maroon gable
-  for (const sx of [-1, 1]) { cyl(g, 0.7, 13, sx * 5.5, 15.2, 11.2, M(0xe6e0c8)); box(g, 1.6, 0.6, 1.6, sx * 5.5, 21.9, 11.2, GOLD); }
-  box(g, 13.5, 1.6, 2.2, 0, 22.4, 11.2, M(0xe6e0c8));
-  box(g, 11, 0.8, 0.4, 0, 11.4, 11.6, M(0xf4ead2));               // porch balustrade
-  const tri = new THREE.Shape(); tri.moveTo(-7.5, 0); tri.lineTo(7.5, 0); tri.lineTo(0, 8.5); tri.closePath();
-  const gold = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 1.4, bevelEnabled: false }), GOLD); gold.position.set(0, 23.2, 10.3); g.add(gold);
-  const tri2 = new THREE.Shape(); tri2.moveTo(-6, 0); tri2.lineTo(6, 0); tri2.lineTo(0, 6.6); tri2.closePath();
-  const red = new THREE.Mesh(new THREE.ExtrudeGeometry(tri2, { depth: 0.6, bevelEnabled: false }), maroon); red.position.set(0, 23.7, 11.6); g.add(red);
-  chofa(g, -7.7, 23.4, 11.4, -1, 1, 1.5); chofa(g, 7.7, 23.4, 11.4, 1, 1, 1.5);
-  // central tiered spire
-  box(g, 15, 3, 15, 0, 33.9, 0, ochre);
-  const tierMat = [GOLD, M(0xc9892a)];
-  let y = 35.4;
-  for (let i = 0; i < 10; i++) {
-    const rb = 6.2 - i * 0.52, rt = rb * 0.84, h = 2.5;
-    const geo = new THREE.CylinderGeometry(rt, rb, h, 4, 1).rotateY(PI / 4);
-    mesh(geo, tierMat[i % 2], g, 0, y + h / 2, 0);
-    mesh(new THREE.CylinderGeometry(rb * 0.9, rb * 1.02, 0.35, 4, 1).rotateY(PI / 4), GOLD, g, 0, y + 0.1, 0);
-    y += h;
+  // pavilion platform with front steps
+  box(g, 70, 2.2, 26, 0, 1.9, 0, cream);
+  box(g, 71, 0.5, 27, 0, 3.15, 0, white);
+  box(g, 14, 0.8, 3, 0, 0.9, 14.6, cream); box(g, 12, 0.8, 2, 0, 1.5, 14, cream);
+  // open colonnade: white pillars on all four sides, dark interior behind
+  box(g, 62, 7, 1, 0, 6.9, -9, M(0xe6d5a6));
+  for (let x = -29; x <= 29.1; x += 5) box(g, 2.2, 4.2, 0.3, x, 6.2, -8.4, brown);
+  for (let x = -32; x <= 32.1; x += 4) {
+    for (const z of [11, -11]) { cyl(g, 0.4, 7, x, 6.9, z, white); box(g, 1.2, 0.4, 1.2, x, 10.5, z, white); box(g, 1.1, 0.4, 1.1, x, 3.5, z, white); }
   }
-  mesh(GEO.cone, GOLD, g, 0, y, 0, 0.55, 9, 0.55);
+  for (const sx of [-1, 1]) for (let z = -7; z <= 7; z += 4) cyl(g, 0.4, 7, sx * 32, 6.9, z, white);
+  box(g, 64, 0.9, 0.4, 0, 4.2, 11, white); box(g, 64, 0.9, 0.4, 0, 4.2, -11, white);   // balustrade
+  box(g, 66, 0.8, 24, 0, 10.9, 0, shade);                                                 // beam
+  // lower wide eave
+  mesh(hipGeo(76, 31, 3.4), roofG, g, 0, 11.3, 0);
+  box(g, 77, 0.5, 0.6, 0, 11.4, 15.5, green); box(g, 77, 0.5, 0.6, 0, 11.4, -15.5, green);
+  box(g, 0.6, 0.5, 31, -38, 11.4, 0, green); box(g, 0.6, 0.5, 31, 38, 11.4, 0, green);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) chofa(g, sx * 38, 11.6, sz * 15.5, sx, sz, 1.5);
+  // upper tier: gold wall panels with green borders
+  box(g, 50, 4.2, 18, 0, 16.4, 0, M(0xb5791d));
+  for (let x = -21; x <= 21.1; x += 7) {
+    if (Math.abs(x) < 1) continue;
+    box(g, 5.6, 3.0, 0.3, x, 16.5, 9.1, green);
+    box(g, 4.8, 2.4, 0.4, x, 16.5, 9.15, M(0xe8a82a));
+  }
+  box(g, 52, 0.5, 20, 0, 18.7, 0, GOLD);
+  mesh(hipGeo(54, 22, 3.4), M(0xc98a22, { side: THREE.DoubleSide }), g, 0, 18.9, 0);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) chofa(g, sx * 27, 19.1, sz * 11, sx, sz, 1.4);
+  // central gable (front-facing) with carved gold pediment, over the entrance
+  box(g, 14, 5, 6, 0, 13.4, 12, cream);
+  box(g, 15, 0.6, 7, 0, 16.2, 12, GOLD);
+  gableRoof(g, 22, 12, 9.5, 0, 16.5, 8, 0xd9962a, 0.88);
+  gableRoof(g, 15, 10, 7.5, 0, 24.0, 4, 0xe0a02a, 0.88);
+  box(g, 15, 0.6, 9, 0, 23.8, 4, GOLD);
+  for (const sx of [-1, 1]) {     // flanking spired gables on the upper tier, as on the Throne Hall
+    gableRoof(g, 13, 9, 6.5, sx * 22, 19.0, 6, 0xd9962a, 0.88);
+    spire(g, sx * 22, 24.5, 1, 2.2, 6, 1.5);
+  }
+  // small white stupas along the roof edge in front of the upper tier
+  for (const x of [-4.5, 0, 4.5]) stupaFinial(g, x, 21.4, 11, x === 0 ? 1.3 : 0.95);
+  // the tall central spire
+  spire(g, 0, 28.5, -1, 3.6, 10, 2.1);
+  // Silver Pagoda behind-left (+x because the screen is mirrored): white base, gold tiered roof, tall spire
+  const sx0 = 56, sz0 = -16;
+  box(g, 16, 5, 12, sx0, 2.5, sz0, white); box(g, 17, 0.6, 13, sx0, 5.3, sz0, shade);
+  mesh(hipGeo(22, 17, 3.2), roofG, g, sx0, 5.6, sz0);
+  box(g, 11, 3, 8, sx0, 10.3, sz0, M(0xb5791d)); box(g, 12, 0.5, 9, sx0, 12, sz0, GOLD);
+  mesh(hipGeo(15, 11, 2.8), roofG, g, sx0, 12.2, sz0);
+  for (const a of [-1, 1]) for (const b of [-1, 1]) chofa(g, sx0 + a * 11, 5.9, sz0 + b * 8.5, a, b, 1.2);
+  spire(g, sx0, 15, sz0, 2.4, 8, 1.7);
   return g;
 }
 
