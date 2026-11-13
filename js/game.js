@@ -652,14 +652,14 @@ function buildCourse() {
           mesh(GEO.sph, M(0x1a1a1a), pp, -0.05, 0.04, lz, 0.13, 0.04, 0.075);   // rounded foot
         }
         const arms = [];
-        for (const az of [-0.22, 0.22]) {   // arms[0] (z -0.22) is the drummer's RIGHT hand (he faces -x), arms[1] the left
+        for (const az of [-0.22, 0.22]) {   // arms[1] (z +0.22) is the right hand as seen on the mirrored screen and does the striking
           const arm = new THREE.Group(); arm.position.set(0, 0.62, az); pp.add(arm);
           const ua = mesh(GEO.cyl, M(0xe0283f), arm, -0.12, 0, 0, 0.075, 0.26, 0.075); ua.rotation.z = PI / 2;   // sleeve
           const fa = mesh(GEO.cyl, skinM, arm, -0.37, 0, 0, 0.055, 0.26, 0.055); fa.rotation.z = PI / 2;   // rounded forearm
           mesh(GEO.sph, skinM, arm, -0.51, 0, 0, 0.065, 0.065, 0.065);   // hand
           const st2 = mesh(GEO.cyl, stickM, arm, -0.74, 0, 0, 0.03, 0.5, 0.03); st2.rotation.z = PI / 2;  // stick
           mesh(GEO.sph, M(0xb3202a), arm, -0.98, 0, 0, 0.1, 0.1, 0.1);   // mallet head
-          arm.rotation.z = az > 0 ? 1.3 : -0.95; arms.push(arm);
+          arm.rotation.z = az > 0 ? -0.95 : 1.3; arms.push(arm);
         }
         g.userData.drums.push({ dr, arms, pp, bz, hit: 0 });
       }
@@ -668,8 +668,8 @@ function buildCourse() {
     return g;
   };
   gate(0, 'ចាប់ផ្ដើម', 'START', false);
-  gate(BANDS[0], 'ដំណាក់កាលទី ១', 'BAND 1', false, true);
-  gate(BANDS[1], 'ដំណាក់កាលទី ២', 'BAND 2', false, true);
+  gate(BANDS[0], 'កងព័ន្ធទី១', 'BAND 1', false, true);
+  gate(BANDS[1], 'កងព័ន្ធទី២', 'BAND 2', false, true);
   gate(RACE_LEN, 'ទីបញ្ចប់', 'FINISH', true);
 }
 
@@ -1607,7 +1607,7 @@ function stepRace(dt) {
       else b.v += (0 - b.v) * Math.min(1, dt * 0.45);
       b.x += b.v * dt;
       if (b.human && b.bandsDone < BANDS.length && b.x + BOW >= BANDS[b.bandsDone]) {
-        b.bandsDone++; showBanner(b.bandsDone === 1 ? 'ដំណាក់កាលទី ១' : 'ដំណាក់កាលទី ២', 'BAND ' + b.bandsDone);
+        b.bandsDone++; showBanner(b.bandsDone === 1 ? 'កងព័ន្ធទី១' : 'កងព័ន្ធទី២', 'BAND ' + b.bandsDone);
         if (SFX.ok()) SFX.tone('sine', 520, 880, SFX.ctx.currentTime, 0.3, 0.16);
       }
       if (!b.finished && b.x + BOW >= RACE_LEN) {
@@ -1734,6 +1734,7 @@ function camGoal(hs, aspect, des, look) {
   look.set(cx + 2.5, window.innerHeight < 520 && aspect > 1.1 ? -3.2 : 1.8, cz - 3);   // short landscape phone: aim lower so boats sit above the tap panel
   fov += lead * 0.22 + (hs.some(b => b.boostT > 0) ? 4 : 0);
   if (G.state === 'results') { des.x += 10; des.y += 1; }
+  if (G.state === 'countdown') { des.set(cx + dist * 0.95 + 4, 5.2 + dist * 0.05, cz + 0.8); look.set(cx - 12, 1.6, cz); }   // start: look from behind the stern down the course (boats run toward -x)
   return fov;
 }
 
@@ -1756,7 +1757,7 @@ function updateCamera(dt, wall) {
     look.set(-27 + Math.sin(a * 0.8) * 3, 2.4, 5);
   } else {
     const hs = splitOn ? [vb[0]] : (vb.length ? vb : [boats[0]]);
-    fov = camGoal(hs, aspect, des, look); orbitDes(des, look);
+    fov = camGoal(hs, aspect, des, look); if (G.state !== 'countdown') orbitDes(des, look);
   }
   const k = camSnap ? 1 : 1 - Math.exp(-dt * 3.2);
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
@@ -1779,7 +1780,7 @@ function updateCamera(dt, wall) {
       d.hit = Math.max(0, d.hit - dt * 2.2);
       const t = 1 - d.hit, sq = d.hit > 0 ? Math.max(0, 1 - Math.abs(t - 0.3) / 0.3) : 0, up = -1.1, down = 0.1;
       d.dr.scale.set(1 + 0.06 * sq, 1 - 0.1 * sq, 1 + 0.06 * sq); d.pp.rotation.z = 0.12 * sq; d.pp.position.y = 0.55 - 0.05 * sq;
-      d.arms.forEach((a, k) => { a.rotation.z = k ? 1.3 : up + (down - up) * sq; });   // right hand (arms[0]) strikes; left hand (arms[1]) hangs down at rest
+      d.arms.forEach((a, k) => { a.rotation.z = k ? up + (down - up) * sq : 1.3; });   // arms[1] (z +0.22) is the drummer's right hand on screen (scene is mirrored): it strikes; the other hangs down at rest
     }); } }
   camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-dt * 3)); camera.updateProjectionMatrix();
 }
