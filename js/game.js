@@ -101,7 +101,7 @@ function canvasTex(w, h, draw) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d');
   const tex = new THREE.CanvasTexture(c);
-  tex.anisotropy = 4;
+  tex.anisotropy = 4; tex.repeat.x = -1; tex.offset.x = 1;   // the canvas is shown mirrored (race runs right to left), so pre-flip every texture to keep text readable
   const fn = () => { ctx.clearRect(0, 0, w, h); draw(ctx, w, h); tex.needsUpdate = true; };
   fn(); redraws.push(fn);
   return tex;
@@ -372,7 +372,7 @@ let _palaceTex = null;
 function makePalace() {
   // flat illustration of the Royal Palace pavilion standing on the ground as a backdrop
   const g = new THREE.Group();
-  if (!_palaceTex) _palaceTex = new THREE.TextureLoader().load('assets/palace.png', t => { t.anisotropy = 4; });
+  if (!_palaceTex) _palaceTex = new THREE.TextureLoader().load('assets/palace.png', t => { t.anisotropy = 4; t.repeat.x = -1; t.offset.x = 1; t.wrapS = THREE.RepeatWrapping; });
   const W = 74, H = W * 776 / 1024;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: _palaceTex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }));
   m.position.y = H / 2 - 0.3; g.add(m);
@@ -1866,7 +1866,7 @@ window.addEventListener('keydown', e => {
     const dx = e.clientX - drag.x;
     if (!drag.moved && Math.abs(dx) < 5) return;
     drag.moved = true; drag.x = e.clientX;
-    camOrbit += dx * 0.008;
+    camOrbit -= dx * 0.008;   // screen is mirrored
     camOrbit = Math.max(0, Math.min(PI * 7 / 18, camOrbit));   // limited to 70 degrees: from the front view round toward the back
     camSnap = true; camSnap2 = true;
   });
