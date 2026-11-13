@@ -410,6 +410,64 @@ function makeTent(col) {
   return g;
 }
 
+/* Phnom Penh backdrop: shophouse rows, the city's towers, Wat Phnom, Independence Monument */
+function buildPhnomPenhSkyline(L2) {
+  const PX = L2;                                             // the Royal Palace stands here
+  const pastel = [0xf2d98a, 0xe9b8a0, 0xf4ead2, 0xc9dcc0, 0xe7c4c4, 0xbcd3e6, 0xf0c27a, 0xd9cfb2];
+  // 1. dense low-rise shophouses (3-5 storeys, flat roofs, water tanks) along the riverfront streets
+  for (let row = 0; row < 2; row++) {
+    for (let x = -800; x < L2 + 1000; x += 0) {
+      const w = rr(6, 10), h = rr(11, 21) + row * 4, d = rr(12, 18);
+      x += w + rr(0, 0.6);
+      if (Math.abs(x - PX) < 62) continue;                    // keep the palace clear
+      const z = -148 - row * 26 + rnd() * 3;
+      const b = box(scene, w, h, d, x, h / 2, z, M(pick(pastel)));
+      box(scene, w + 0.4, 0.5, d + 0.4, x, h + 0.25, z, M(0xb9b09c));      // parapet
+      for (let f = 1; f < Math.round(h / 4); f++) box(scene, w * 0.7, 1.4, 0.3, x, f * 4 - 0.2, z + d / 2 + 0.1, M(0x5b6a72));   // window bands
+      if (rnd() < 0.4) cyl(scene, 0.9, 1.8, x + rr(-2, 2), h + 1.4, z, M(0x7a8b95));  // roof water tank
+    }
+  }
+  // 2. the towers, clustered in the centre as in the real skyline
+  const tower = (x, z, w, d, h, col, crown) => {
+    const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+    box(g, w, h, d, 0, h / 2, 0, M(col));
+    for (let y = 6; y < h; y += 5) box(g, w + 0.2, 0.8, d + 0.2, 0, y, 0, M(0x6f8ba3));    // glass bands
+    if (crown === 'vattanac') { box(g, w * 0.7, 14, d * 0.7, 0, h + 7, 0, M(col)); mesh(GEO.cone4, M(0xb0b8c0), g, 0, h + 14, 0, w * 0.5, 22, d * 0.5); }
+    else if (crown === 'canadia') { mesh(GEO.cone4, M(0xdfe9f2), g, 0, h, 0, w * 0.72, 18, d * 0.72); }
+    else if (crown === 'gold') { box(g, w * 0.8, 6, d * 0.8, 0, h + 3, 0, GOLD); }
+    else if (crown === 'twin') { box(g, w * 0.5, 8, d * 0.5, 0, h + 4, 0, M(0xb0b8c0)); }
+    return g;
+  };
+  tower(PX - 190, -260, 30, 30, 120, 0x86a9cc, 'vattanac');     // Vattanac Capital Tower
+  tower(PX - 140, -240, 26, 26, 95, 0xc9d8e6, 'canadia');       // Canadia Tower
+  tower(PX + 165, -255, 24, 24, 85, 0xdfe9f2, 'gold');          // Gold Tower 42
+  tower(PX + 215, -300, 28, 24, 110, 0x9fc2e0, 'twin');         // Exchange Square
+  tower(PX + 245, -300, 24, 24, 90, 0x9fc2e0, 'twin');
+  tower(PX - 260, -300, 28, 28, 100, 0xdfe9f2, 'canadia');
+  tower(PX - 330, -330, 26, 26, 76, 0xc9d8e6, null);
+  tower(PX + 330, -320, 30, 26, 70, 0x86a9cc, null);
+  for (let i = 0; i < 28; i++) {                                // filler mid-rises in the distance
+    const x = rr(-700, L2 + 900);
+    if (Math.abs(x - PX) < 130) continue;
+    const h = rr(24, 62), w = rr(16, 28);
+    box(scene, w, h, rr(16, 26), x, h / 2, rr(-380, -300), M(pick([0x9fc2e0, 0xdfe9f2, 0x86a9cc, 0xc9d8e6, 0xf0e6d2])));
+  }
+  // 3. Wat Phnom: temple on its little hill, north of the palace
+  { const g = new THREE.Group(); g.position.set(PX - 330, 0, -200); scene.add(g);
+    mesh(GEO.sph, M(0x4f8a3a), g, 0, -4, 0, 46, 18, 40);
+    box(g, 20, 0.6, 14, 0, 13.7, 0, M(0xe6dcc0));
+    box(g, 14, 6, 9, 0, 17, 0, M(0xf2ead2));
+    hipRoof(g, 17, 12, 5, 0, 20, 0, 0xc2392a, 1.0);
+    hipRoof(g, 12, 8, 4, 0, 24, 0, 0xf2a21a, 0.9);
+    const st = makeStupa(); st.scale.setScalar(0.7); st.position.set(12, 13.7, -5); g.add(st); }
+  // 4. Independence Monument: red lotus-tiered tower, south of the palace
+  { const g = new THREE.Group(); g.position.set(PX + 330, 0, -200); scene.add(g);
+    const red = M(0xb5502f);
+    box(g, 22, 3, 22, 0, 1.5, 0, M(0xd9cfb2)); box(g, 17, 3, 17, 0, 4.5, 0, M(0xe6dcc0));
+    for (let i = 0; i < 5; i++) { const s = 8 - i * 1.15; cyl(g, s * 0.75, 6, 0, 9 + i * 6.2, 0, red, GEO.cyl6); cyl(g, s * 0.9, 1, 0, 12.4 + i * 6.2, 0, red, GEO.cyl6); }
+    mesh(GEO.cone, red, g, 0, 42, 0, 3, 14, 3); mesh(GEO.cone, GOLD, g, 0, 52, 0, 0.3, 4, 0.3); }
+}
+
 const footprints = [];  // {x, hw} for tree avoidance
 function buildShore() {
   const L2 = RACE_LEN;
@@ -448,13 +506,8 @@ function buildShore() {
     if (footprints.some(f => Math.abs(f.x - x) < f.hw && true)) continue;
     const t = makeTent(pick(tentCols)); t.position.set(x, 1.8, -60 - rnd() * 4); t.scale.setScalar(rr(1.2, 1.7)); scene.add(t);
   }
-  // distant skyline
-  const glass = [0x9fc2e0, 0xdfe9f2, 0x86a9cc, 0xc9d8e6, 0xf0e6d2];
-  for (let x = -700; x < L2 + 900; x += rr(24, 52)) {
-    const h = rr(30, 120), w = rr(16, 34);
-    const b = box(scene, w, h, rr(16, 30), x, h / 2, rr(-330, -230), M(pick(glass)));
-    if (rnd() < 0.35) box(scene, w * 0.6, h * 0.15, w * 0.6, b.position.x, h + h * 0.07, b.position.z, M(0xb0b8c0));
-  }
+  // distant skyline: Phnom Penh, with the Royal Palace (placed above) at its heart
+  buildPhnomPenhSkyline(L2);
   // low hills / treeline
   for (let x = -900; x < L2 + 1100; x += 120) {
     const m = new THREE.Mesh(GEO.sph, M(0x4f8a3a), scene); m.position.set(x, -4, -190 - rnd() * 40); m.scale.set(rr(90, 160), rr(14, 26), rr(40, 60)); scene.add(m);
@@ -1501,7 +1554,7 @@ function startRace() {
   $('btnPause').style.display = G.mode === 3 ? 'none' : '';
   if (G.mode === 3) { SESS = { role: NET.role, code: NET.code, diff: G.diffKey }; saveSnap(true); }
   $('btnAgain').querySelector('i').textContent = 'Race again';
-  camSnap = true;
+  camSnap = true; camOrbit = PI / 3;   // every race starts from the 60-degree rear-side view
 }
 
 function finishRace() {
@@ -1716,7 +1769,7 @@ function updateVisuals(dt, wall) {
 
 const camera2 = new THREE.PerspectiveCamera(65, 1, 0.5, 2600);
 const camPos2 = new THREE.Vector3(0, 8, 40), camLook2 = new THREE.Vector3();
-let splitOn = false, camSnap2 = true, camOrbit = 0;   // camOrbit: user-dragged horizontal angle around the boat (0 = front view, up to 70 degrees toward the back)
+let splitOn = false, camSnap2 = true, camOrbit = PI / 3;   // camOrbit: user-dragged horizontal angle around the boat (0 = front view, 60 degrees = the default rear-side view the race starts from)
 function orbitDes(d, l) { if (!camOrbit) return; const x = d.x - l.x, z = d.z - l.z, c = Math.cos(camOrbit), n = Math.sin(camOrbit); d.x = l.x + x * c - z * n; d.z = l.z + x * n + z * c; }
 const splitLine = document.createElement('div');
 splitLine.style.cssText = 'position:fixed;top:0;bottom:0;left:50%;width:4px;margin-left:-2px;background:#ffc62e;box-shadow:0 0 0 1px #7d0a1c;z-index:5;pointer-events:none;display:none';
@@ -1733,7 +1786,6 @@ function camGoal(hs, aspect, des, look) {
   des.set(cx + 13 + Math.min(spread, 40) * 0.1, 3.9 + dist * 0.04, cz + dist);
   look.set(cx + 2.5, window.innerHeight < 520 && aspect > 1.1 ? -3.2 : 1.8, cz - 3);   // short landscape phone: aim lower so boats sit above the tap panel
   if (G.state === 'results') { des.x += 10; des.y += 1; }
-  if (G.state === 'countdown') { des.set(cx + dist * 0.95 + 4, 5.2 + dist * 0.05, cz + 0.8); look.set(cx - 12, 1.6, cz); }   // start: look from behind the stern down the course (boats run toward -x)
   return fov;
 }
 
@@ -1756,7 +1808,7 @@ function updateCamera(dt, wall) {
     look.set(-27 + Math.sin(a * 0.8) * 3, 2.4, 5);
   } else {
     const hs = splitOn ? [vb[0]] : (vb.length ? vb : [boats[0]]);
-    fov = camGoal(hs, aspect, des, look); if (G.state !== 'countdown') orbitDes(des, look);
+    fov = camGoal(hs, aspect, des, look); orbitDes(des, look);
   }
   const k = camSnap ? 1 : 1 - Math.exp(-dt * 3.2);
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
@@ -1867,7 +1919,7 @@ window.addEventListener('keydown', e => {
     if (!drag.moved && Math.abs(dx) < 5) return;
     drag.moved = true; drag.x = e.clientX;
     camOrbit -= dx * 0.008;   // screen is mirrored
-    camOrbit = Math.max(0, Math.min(PI * 7 / 18, camOrbit));   // limited to 70 degrees: from the front view round toward the back
+    camOrbit = Math.max(0, Math.min(PI / 3, camOrbit));   // limited to 60 degrees: from the front view round toward the back
     camSnap = true; camSnap2 = true;
   });
   const end = () => { if (drag && !drag.moved) tap(); drag = null; };
