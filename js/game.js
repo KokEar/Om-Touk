@@ -370,14 +370,89 @@ function hipRoof(parent, w, d, h, x, y, z, color, trimTall) {
   return g;
 }
 
-let _palaceTex = null;
+/* Royal Palace (Chanchhaya-style pavilion), built from primitives in local coords:
+   front faces +z (towards the river), ground at y = 0, 74 units wide */
+function hipGeo(w, d, h) {
+  // hip roof with a ridge along x; base rectangle w x d at y = 0, ridge at y = h
+  const r = Math.max(0, (w - d) / 2), x = w / 2, z = d / 2;
+  const A = [-x, 0, z], B = [x, 0, z], C = [x, 0, -z], D = [-x, 0, -z], E = [-r, h, 0], F = [r, h, 0];
+  const tris = [[A, B, F], [A, F, E], [C, D, E], [C, E, F], [D, A, E], [B, C, F]];
+  const pos = []; tris.forEach(t => t.forEach(p => pos.push(...p)));
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+  return g;
+}
+function chofa(parent, x, y, z, sx, sz, s) {
+  // upswept gold horn at a roof corner, leaning outwards
+  const h = mesh(GEO.cone, GOLD, parent, x, y + 0.9 * s, z, 0.18 * s, 1.8 * s, 0.18 * s);
+  h.rotation.z = -0.7 * sx; h.rotation.x = 0.7 * sz;
+  const t = mesh(GEO.cone, GOLD, parent, x + sx * 0.75 * s, y + 1.9 * s, z + sz * 0.75 * s, 0.1 * s, 0.9 * s, 0.1 * s);
+  t.rotation.z = -1.2 * sx; t.rotation.x = 1.2 * sz;
+}
+function palaceTier(g, w, d, h, y, roofCol) {
+  mesh(hipGeo(w, d, h), new THREE.MeshLambertMaterial({ color: roofCol, side: THREE.DoubleSide }), g, 0, y, 0);
+  box(g, w + 0.4, 0.4, 0.5, 0, y + 0.1, d / 2, GOLD);             // eave trim
+  box(g, w + 0.4, 0.4, 0.5, 0, y + 0.1, -d / 2, GOLD);
+  box(g, 0.5, 0.4, d, -w / 2, y + 0.1, 0, GOLD);
+  box(g, 0.5, 0.4, d, w / 2, y + 0.1, 0, GOLD);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) chofa(g, sx * (w / 2 + 0.2), y + 0.3, sz * (d / 2 + 0.2), sx, sz, 2.0);
+}
 function makePalace() {
-  // flat illustration of the Royal Palace pavilion standing on the ground as a backdrop
   const g = new THREE.Group();
-  if (!_palaceTex) _palaceTex = new THREE.TextureLoader().load('assets/palace.png', t => { t.anisotropy = 4; t.repeat.x = -1; t.offset.x = 1; t.wrapS = THREE.RepeatWrapping; });
-  const W = 74, H = W * 776 / 1024;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: _palaceTex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }));
-  m.position.y = H / 2 - 0.3; g.add(m);
+  const cream = M(0xf6d98a), slate = M(0x3f4d4d), maroon = M(0x7a1620), ochre = M(0xc9892a), sand = M(0xf2c46a);
+  // podium and main walls
+  box(g, 74, 1.4, 30, 0, 0.7, 0, ochre);
+  box(g, 72, 1.4, 28, 0, 2.1, 0, M(0xe0a63a));
+  box(g, 68, 5, 24, 0, 5.3, 0, sand);
+  box(g, 68.6, 0.8, 24.6, 0, 8.0, 0, M(0xb5b0a0));
+  box(g, 70, 0.5, 26, 0, 8.65, 0, sand);
+  for (let x = -30; x <= 30; x += 5) {                           // front windows
+    if (Math.abs(x) < 7) continue;
+    box(g, 1.4, 2.4, 0.3, x, 5.6, 12.1, slate);
+    box(g, 1.9, 0.4, 0.5, x, 7.0, 12.15, GOLD);
+  }
+  box(g, 8, 5, 0.4, 0, 5.3, 12.1, maroon);                        // red gate
+  for (let i = -3; i <= 3; i++) mesh(GEO.sph, GOLD, g, i * 1.0, 5.3 + (i % 2) * 0.8, 12.35, 0.22, 0.22, 0.1);
+  box(g, 12, 0.7, 3, 0, 0.35, 16.4, M(0xd9a441)); box(g, 10, 0.7, 2, 0, 1.05, 16.0, M(0xe0a63a)); // entrance steps
+  box(g, 68, 0.9, 0.35, 0, 9.5, 12.5, M(0xf4ead2));               // balustrade
+  box(g, 68, 0.9, 0.35, 0, 9.5, -12.5, M(0xf4ead2));
+  for (let x = -34; x <= 34; x += 4) box(g, 0.4, 1.1, 0.5, x, 9.5, 12.5, M(0xf4ead2));
+  // colonnade
+  let k = 0;
+  for (let x = -33; x <= 33.01; x += 3.3, k++) {
+    if (Math.abs(x) < 9) continue;
+    const m = (k % 3 === 1) ? slate : cream;
+    cyl(g, 0.45, 8.6, x, 13.2, 10.8, m);
+    cyl(g, 0.45, 8.6, x, 13.2, -10.8, m);
+  }
+  for (const sx of [-1, 1]) for (let z = -7; z <= 7; z += 3.5) cyl(g, 0.45, 8.6, sx * 33, 13.2, z, cream);
+  box(g, 72, 1, 26, 0, 17.8, 0, M(0xd9a441));                     // entablature
+  // stepped tiered roofs
+  palaceTier(g, 80, 32, 5.6, 18.2, 0xb8862e);
+  box(g, 52, 3, 20, 0, 24.2, 0, M(0xc8902f)); box(g, 53, 0.5, 21, 0, 25.8, 0, GOLD);
+  palaceTier(g, 56, 22, 5.0, 25.8, 0xb8862e);
+  box(g, 28, 3, 15, 0, 30.5, 0, M(0xc8902f)); box(g, 29, 0.5, 16, 0, 32.1, 0, GOLD);
+  palaceTier(g, 32, 17, 4.4, 32.1, 0x9a6a26);
+  // central porch: two cream pillars, balcony, maroon gable
+  for (const sx of [-1, 1]) { cyl(g, 0.7, 13, sx * 5.5, 15.2, 11.2, M(0xe6e0c8)); box(g, 1.6, 0.6, 1.6, sx * 5.5, 21.9, 11.2, GOLD); }
+  box(g, 13.5, 1.6, 2.2, 0, 22.4, 11.2, M(0xe6e0c8));
+  box(g, 11, 0.8, 0.4, 0, 11.4, 11.6, M(0xf4ead2));               // porch balustrade
+  const tri = new THREE.Shape(); tri.moveTo(-7.5, 0); tri.lineTo(7.5, 0); tri.lineTo(0, 8.5); tri.closePath();
+  const gold = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 1.4, bevelEnabled: false }), GOLD); gold.position.set(0, 23.2, 10.3); g.add(gold);
+  const tri2 = new THREE.Shape(); tri2.moveTo(-6, 0); tri2.lineTo(6, 0); tri2.lineTo(0, 6.6); tri2.closePath();
+  const red = new THREE.Mesh(new THREE.ExtrudeGeometry(tri2, { depth: 0.6, bevelEnabled: false }), maroon); red.position.set(0, 23.7, 11.6); g.add(red);
+  chofa(g, -7.7, 23.4, 11.4, -1, 1, 1.5); chofa(g, 7.7, 23.4, 11.4, 1, 1, 1.5);
+  // central tiered spire
+  box(g, 15, 3, 15, 0, 33.9, 0, ochre);
+  const tierMat = [GOLD, M(0xc9892a)];
+  let y = 35.4;
+  for (let i = 0; i < 10; i++) {
+    const rb = 6.2 - i * 0.52, rt = rb * 0.84, h = 2.5;
+    const geo = new THREE.CylinderGeometry(rt, rb, h, 4, 1).rotateY(PI / 4);
+    mesh(geo, tierMat[i % 2], g, 0, y + h / 2, 0);
+    mesh(new THREE.CylinderGeometry(rb * 0.9, rb * 1.02, 0.35, 4, 1).rotateY(PI / 4), GOLD, g, 0, y + 0.1, 0);
+    y += h;
+  }
+  mesh(GEO.cone, GOLD, g, 0, y, 0, 0.55, 9, 0.55);
   return g;
 }
 
@@ -1183,17 +1258,7 @@ function makeBoat(si) {
     new THREE.MeshBasicMaterial({ map: wakeTex, transparent: true, opacity: 0, depthWrite: false, fog: true }));
   scene.add(wake);
   scene.add(root);
-  // name tag lying on the water just outside the hull (outer side of the lane): says whose boat it is
-  const tagTex = canvasTex(512, 96, (c, w, h) => {
-    const t = (s.kh && s.kh !== s.en ? s.kh + ' · ' : '') + s.en;
-    c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 44px ' + FONT_B;
-    c.lineWidth = 8; c.strokeStyle = 'rgba(0,0,0,.55)'; c.strokeText(t, w / 2, h / 2 + 2);
-    c.fillStyle = s.css || '#fff6dc'; c.fillText(t, w / 2, h / 2 + 2);
-  });
-  const tag = new THREE.Mesh(new THREE.PlaneGeometry(9, 9 * 96 / 512).rotateX(-PI / 2),
-    new THREE.MeshBasicMaterial({ map: tagTex, transparent: true, opacity: 0.9, depthWrite: false, fog: true }));
-  scene.add(tag);
-  return { root, body, rowers, head, cap, capT, capArms, apsara, steer, steerArms, steerUpdate, wake, tag, scheme: s };
+  return { root, body, rowers, head, cap, capT, capArms, apsara, steer, steerArms, steerUpdate, wake, scheme: s };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1454,7 +1519,7 @@ function updateHud() {
   const tr = $('track'); tr.querySelectorAll('.dot').forEach(d => d.remove());
   boats.forEach(b => {
     const pr = clamp((b.x + BOW - START_NOSE) / (RACE_LEN - START_NOSE), 0, 1);
-    const d = document.createElement('div'); d.className = 'dot' + (b.human ? ' me' : ''); d.style.left = pr * 100 + '%'; d.style.background = b.scheme.css; d.textContent = b.human ? (G.mode === 2 ? b.player + 1 : '') : '';
+    const d = document.createElement('div'); d.className = 'dot' + (b.human ? ' me' : ''); d.style.left = (1 - pr) * 100 + '%'; d.style.background = b.scheme.css; d.textContent = b.human ? (G.mode === 2 ? b.player + 1 : '') : '';
     tr.appendChild(d);
   });
   const lead = G.humans.reduce((m, b) => Math.max(m, b.x + BOW), -1e9);
@@ -1549,7 +1614,7 @@ function setupRace() {
   });
   buildPanels();
   const tr = $('track'); tr.querySelectorAll('.tick').forEach(t => t.remove());
-  BANDS.forEach((bd, i) => { const t = document.createElement('div'); t.className = 'tick'; t.style.left = ((bd - START_NOSE) / (RACE_LEN - START_NOSE) * 100) + '%'; t.innerHTML = '<i></i><span>' + (i + 1) + '</span>'; tr.appendChild(t); });
+  BANDS.forEach((bd, i) => { const t = document.createElement('div'); t.className = 'tick'; t.style.left = ((1 - (bd - START_NOSE) / (RACE_LEN - START_NOSE)) * 100) + '%'; t.innerHTML = '<i></i><span>' + (i + 1) + '</span>'; tr.appendChild(t); });
   document.querySelectorAll('.panel').forEach(p => p.classList.toggle('single', G.mode !== 2));
   NET.rx = null; NET.lastSend = 0;
   updateHud();
@@ -1756,7 +1821,6 @@ function updateVisuals(dt, wall) {
     const wo = clamp((b.v - 2) / 14, 0, 1) * 0.4;
     wake.material.opacity = lerp(wake.material.opacity, wo, 0.15);
     wake.scale.set(1, 1, 0.55 + sq * 0.35);
-    b.tag.position.set(b.x - 2, 0.3, b.z + Math.sign(b.z) * 3.2);   // outer waterline: away from the divider
     // spray at the bow + foam along hull
     if (b.v > 2) {
       const n = b.v * dt * 2.2; let cnt = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
@@ -2028,7 +2092,7 @@ const curPick = () => PICK.who === 2 && G.mode === 2 ? PICK.p2 : PICK.me;
 function setModel(i, sc) {
   const b = boats[i]; if (keyOf(b.scheme) === keyOf(sc)) return;
   if (sc.skin && !skinReady(sc.skin)) { loadSkin(sc.skin, applyModels); return; }   // decode the picture first, then swap
-  [b.root, b.wake, b.tag].forEach(o => { scene.remove(o); o.traverse(n => { if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => { if (m.map && m.map !== wakeTex) m.map.dispose(); }); }); });
+  [b.root, b.wake].forEach(o => { scene.remove(o); o.traverse(n => { if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => { if (m.map && m.map !== wakeTex) m.map.dispose(); }); }); });
   Object.assign(b, makeBoat(sc), { name: sc });
 }
 function otherFree() { return GARAGE.find(s => keyOf(s) !== keyOf(PICK.me)) || SCHEMES[0]; }

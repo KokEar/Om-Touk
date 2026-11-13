@@ -59,13 +59,13 @@ kbd{display:inline-block;min-width:24px;padding:2px 6px;margin:1px;border-radius
 #hud{position:fixed;inset:0;pointer-events:none;z-index:10}
 #hud *{pointer-events:none}
 #hud button{pointer-events:auto}
-#topbar{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+#topbar{position:absolute;top:10px;left:10px;right:10px;display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-direction:row-reverse}
 #progress{flex:1;max-width:620px;padding:8px 14px 12px;border-radius:14px;background:rgba(8,30,72,.62);border:1.5px solid rgba(255,207,63,.65);backdrop-filter:blur(4px)}
 .p-label{font-size:12px;color:var(--gold);margin-bottom:6px;font-weight:700;letter-spacing:.03em}
 #track{position:relative;height:8px;border-radius:5px;background:rgba(255,255,255,.2);margin:0 8px}
 #track .flag{position:absolute;top:-8px;width:3px;height:22px;background:#fff}
-#track .flag.start{left:0}
-#track .flag.finish{right:0;width:10px;background:repeating-conic-gradient(#fff 0 25%,#111 0 50%) 0 0/6px 6px}
+#track .flag.start{right:0}
+#track .flag.finish{left:0;width:10px;background:repeating-conic-gradient(#fff 0 25%,#111 0 50%) 0 0/6px 6px}
 .dot{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid #fff;font-size:9px;font-weight:700;color:#fff;
   display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.5);text-shadow:0 1px 2px rgba(0,0,0,.6)}
 .dot.me{width:22px;height:22px;margin:-11px 0 0 -11px;border-color:var(--gold);font-size:11px;z-index:3}
