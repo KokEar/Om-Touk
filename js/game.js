@@ -217,6 +217,8 @@ flagMat.onBeforeCompile = sh => {
     .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n float ph=instanceMatrix[3].x;\n#else\n float ph=modelMatrix[3].x;\n#endif\n transformed.z += sin(position.x*2.6 - uT*5.0 + ph)*0.17*position.x;\n transformed.y += sin(position.x*2.0 - uT*4.0 + ph)*0.04*position.x;');
 };
 
+const flagClone = () => { const m = flagMat.clone(); m.onBeforeCompile = flagMat.onBeforeCompile; return m; };   // clone() drops onBeforeCompile, so re-attach the wave shader
+
 function bannerTexture(kh, en, w, h, finish, band) {
   return canvasTex(w, h, (c) => {
     const g = c.createLinearGradient(0, 0, 0, h);
@@ -637,7 +639,7 @@ function buildCourse() {
     if (false) box(g, 26.5, 0.35, 0.35, bx, 12.6, -19.5, GOLD);
     if (false) for (const dx of [-13.2, 13.2]) { // chequered flags on the posts
       const ft = canvasTex(64, 64, (c) => { for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) { c.fillStyle = (x + y) % 2 ? '#fff' : '#e0283f'; c.fillRect(x * 16, y * 16, 16, 16); } });
-      const fl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.8, 6, 1).translate(1.2, 0, 0), flagMat.clone()); fl.material.map = ft; fl.position.set(bx + dx, 11.4, -19.5); g.add(fl);
+      const fl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.8, 6, 1).translate(1.2, 0, 0), flagClone()); fl.material.map = ft; fl.position.set(bx + dx, 11.4, -19.5); g.add(fl);
     }
     // floating line on the water
     const lineTex = canvasTex(64, 64, (c, w, h) => {
@@ -663,7 +665,7 @@ function buildCourse() {
           const f = mesh(GEO.cone, GOLD, sb, sx * (HL * 0.34 + 0.02), 0.95, 0, 0.09, 0.4, 0.09); f.rotation.z = -sx * 0.5;
         }
         cyl(sb, 0.05, 2.6, 0, 1.6, 0, M(0xe9c477));
-        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagMat.clone());
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagClone());
         fl.material.map = rf; fl.position.set(0.05, 2.5, 0); sb.add(fl);
       }
     }
@@ -685,7 +687,7 @@ function buildCourse() {
           const f = mesh(GEO.cone, GOLD, sb, sx * (HL * 0.34 + 0.02), 1.1, 0, 0.09, 0.4, 0.09); f.rotation.z = -sx * 0.5;
         }
         cyl(sb, 0.05, 2.6, 1.6, 1.8, 0, stickM);
-        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagMat.clone());
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagClone());
         fl.material.map = rf; fl.position.set(1.65, 2.6, 0); sb.add(fl);
         // drum
         const dr = new THREE.Group(); dr.position.set(-0.55, 0.13, 0); sb.add(dr);
@@ -1181,7 +1183,17 @@ function makeBoat(si) {
     new THREE.MeshBasicMaterial({ map: wakeTex, transparent: true, opacity: 0, depthWrite: false, fog: true }));
   scene.add(wake);
   scene.add(root);
-  return { root, body, rowers, head, cap, capT, capArms, apsara, steer, steerArms, steerUpdate, wake, scheme: s };
+  // name tag lying on the water just outside the hull (outer side of the lane): says whose boat it is
+  const tagTex = canvasTex(512, 96, (c, w, h) => {
+    const t = (s.kh && s.kh !== s.en ? s.kh + ' · ' : '') + s.en;
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '700 44px ' + FONT_B;
+    c.lineWidth = 8; c.strokeStyle = 'rgba(0,0,0,.55)'; c.strokeText(t, w / 2, h / 2 + 2);
+    c.fillStyle = s.css || '#fff6dc'; c.fillText(t, w / 2, h / 2 + 2);
+  });
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(9, 9 * 96 / 512).rotateX(-PI / 2),
+    new THREE.MeshBasicMaterial({ map: tagTex, transparent: true, opacity: 0.9, depthWrite: false, fog: true }));
+  scene.add(tag);
+  return { root, body, rowers, head, cap, capT, capArms, apsara, steer, steerArms, steerUpdate, wake, tag, scheme: s };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1530,7 +1542,7 @@ function setupRace() {
   let ai = 0;
   boats.forEach((b, i) => {
     const human = G.mode === 3 ? i === NET.myIdx : (i === 0 || (G.mode === 2 && i === 1));
-    Object.assign(b, { x: START_NOSE - BOW, z: LANES[i], v: 0, sync: 0.4, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0, human, auto: false, remote: G.mode === 3 && !human,
+    Object.assign(b, { x: START_NOSE - BOW, z: G.mode === 3 && i !== NET.myIdx ? LANES[1] : G.mode === 3 ? LANES[0] : LANES[i], v: 0, sync: 0.4, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0, human, auto: false, remote: G.mode === 3 && !human,
       player: human ? i : -1, ptr: 0, aiPtr: 0, ns: new Uint8Array(G.notes.length), stats: { p: 0, g: 0, m: 0 }, lastHit: -9, rank: 0, strokeT: 0, bandsDone: 0 });
     if (human) { G.humans.push(b); if (G.demo) { b.auto = true; b.skill = 0.9; } }
     else { b.skill = aiSkills[ai++ % aiSkills.length]; }
@@ -1744,6 +1756,7 @@ function updateVisuals(dt, wall) {
     const wo = clamp((b.v - 2) / 14, 0, 1) * 0.4;
     wake.material.opacity = lerp(wake.material.opacity, wo, 0.15);
     wake.scale.set(1, 1, 0.55 + sq * 0.35);
+    b.tag.position.set(b.x - 2, 0.3, b.z + Math.sign(b.z) * 3.2);   // outer waterline: away from the divider
     // spray at the bow + foam along hull
     if (b.v > 2) {
       const n = b.v * dt * 2.2; let cnt = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
@@ -1767,6 +1780,7 @@ function updateVisuals(dt, wall) {
   }
 }
 
+const SPLIT_ME = 0.7;   // share of the screen for my own boat's view in the 1v1 split
 const camera2 = new THREE.PerspectiveCamera(65, 1, 0.5, 2600);
 const camPos2 = new THREE.Vector3(0, 8, 40), camLook2 = new THREE.Vector3();
 let splitOn = false, camSnap2 = true, camOrbit = PI / 3;   // camOrbit: user-dragged horizontal angle around the boat (0 = front view, 60 degrees = the default rear-side view the race starts from)
@@ -1799,7 +1813,7 @@ function updateCamera(dt, wall) {
     if (!splitOn && d > 30) { splitOn = true; camSnap2 = true; camPos2.copy(camPos); camLook2.copy(camLook); }
     else if (splitOn && d < 16) splitOn = false;
   } else splitOn = false;
-  camera.aspect = camera2.aspect = splitOn ? (W / 2) / H : W / H;
+  camera.aspect = splitOn ? (W * SPLIT_ME) / H : W / H; camera2.aspect = splitOn ? (W * (1 - SPLIT_ME)) / H : W / H;   // my own view gets 70% of the split screen
   const aspect = camera.aspect;
   let des = new THREE.Vector3(), look = new THREE.Vector3(), fov = 65;
   if (G.state === 'menu') {
@@ -1817,7 +1831,7 @@ function updateCamera(dt, wall) {
   if ((splitOn ? vb[0].boostT > 0 : vb.some(b => b.boostT > 0)) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
   camera.lookAt(camLook);
   if (splitOn) {   // second camera follows the second player's boat
-    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], aspect, d2, l2); orbitDes(d2, l2);
+    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], camera2.aspect, d2, l2); orbitDes(d2, l2);
     const k2 = camSnap2 ? 1 : 1 - Math.exp(-dt * 3.2);
     camPos2.lerp(d2, k2); camLook2.lerp(l2, camSnap2 ? 1 : 1 - Math.exp(-dt * 4)); camSnap2 = false;
     camera2.position.copy(camPos2);
@@ -1865,7 +1879,7 @@ function frame(now) {
     pMat.uniforms.uPx.value = H * renderer.getPixelRatio() / (2 * Math.tan(cam.fov * PI / 360));
     renderer.render(scene, cam);
   };
-  if (splitOn) { renderer.setScissorTest(true); renderView(camera, 0, W / 2); renderView(camera2, W / 2, W / 2); splitLine.style.display = 'block'; }
+  if (splitOn) { renderer.setScissorTest(true); renderView(camera, W * (1 - SPLIT_ME), W * SPLIT_ME); renderView(camera2, 0, W * (1 - SPLIT_ME)); splitLine.style.left = (SPLIT_ME * 100) + '%'; splitLine.style.display = 'block'; }
   else { renderer.setScissorTest(false); renderView(camera, 0, W); splitLine.style.display = 'none'; }
   if (G.mode === 3) netTick();
   // HUD
@@ -2014,7 +2028,7 @@ const curPick = () => PICK.who === 2 && G.mode === 2 ? PICK.p2 : PICK.me;
 function setModel(i, sc) {
   const b = boats[i]; if (keyOf(b.scheme) === keyOf(sc)) return;
   if (sc.skin && !skinReady(sc.skin)) { loadSkin(sc.skin, applyModels); return; }   // decode the picture first, then swap
-  [b.root, b.wake].forEach(o => { scene.remove(o); o.traverse(n => { if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => { if (m.map && m.map !== wakeTex) m.map.dispose(); }); }); });
+  [b.root, b.wake, b.tag].forEach(o => { scene.remove(o); o.traverse(n => { if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => { if (m.map && m.map !== wakeTex) m.map.dispose(); }); }); });
   Object.assign(b, makeBoat(sc), { name: sc });
 }
 function otherFree() { return GARAGE.find(s => keyOf(s) !== keyOf(PICK.me)) || SCHEMES[0]; }
