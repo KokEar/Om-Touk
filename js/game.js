@@ -1031,7 +1031,7 @@ function makeBoat(si) {
     const hu = Math.abs(sx / HL), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
     const htop = 0.82 + 1.2 * Math.pow(hu, 4.5), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
     const sn = clamp((htop - 0.27) / hd, 0, 0.98), halfW = hw * Math.sqrt(1 - sn * sn);
-    const seatZ = clamp(halfW - 0.36, 0.26, 0.52);
+    const seatZ = clamp(halfW - 0.36, 0.26, 0.52), hullP = { hw, htop, hd };
     box(body, 0.34, 0.07, seatZ * 2 + 0.3, sx - 0.05, 0.22, 0, wood);
     for (const sd of [-1, 1]) {
       const R = new THREE.Group(); R.position.set(sx, 0.27, sd * seatZ); body.add(R);
@@ -1056,7 +1056,7 @@ function makeBoat(si) {
       // blade is placed in the un-scaled shaft space → compensate for shaft scale
       blade.position.y = -0.5 + 0.2 / L_SHAFT; blade.scale.set(1, 1 / L_SHAFT, 1); shaft.add(blade);
       body.add(armA, armB, shaft);
-      rowers.push({ R, side: sd, sx, sz: sd * seatZ, armA, armB, shaft, off: (rnd() - 0.5) * 0.9, i });
+      rowers.push({ hullP, R, side: sd, sx, sz: sd * seatZ, armA, armB, shaft, off: (rnd() - 0.5) * 0.9, i });
     }
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
@@ -1106,9 +1106,9 @@ function makeBoat(si) {
     oarBlade.position.copy(tip).addScaledVector(sdir, -0.2); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
     steer.rotation.y = 0.05 * sweep;
     const shR = new THREE.Vector3(SX, SY + 1.3, 0.25), shL = new THREE.Vector3(SX, SY + 1.3, -0.25), el = new THREE.Vector3(), wr = new THREE.Vector3();
-    ik2(shR, G, 0.32, 0.32, new THREE.Vector3(-0.4, -0.6, 0.5), el, wr);           // right hand steers the oar; arm reaches out and forward with a gentle, natural elbow bend
+    ik2(shR, G, 0.32, 0.32, new THREE.Vector3(-0.3, 0.1, 1), el, wr);           // right hand steers the oar; arm reaches out and forward with a gentle, natural elbow bend
     aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr); stShoulders[0].position.copy(shR); stElbows[0].position.copy(el); stHandAt(stPalms[0], el, wr);
-    ik2(shL, sV[3].set(SX + 0.18, SY + 0.85, -0.3), 0.32, 0.32, new THREE.Vector3(-0.1, -0.5, -1), el, wr);   // left hand rests on the hip
+    ik2(shL, sV[3].set(SX + 0.18, SY + 0.85, -0.3), 0.32, 0.32, new THREE.Vector3(-0.1, 0.1, -1), el, wr);   // left hand rests on the hip
     aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr); stShoulders[1].position.copy(shL); stElbows[1].position.copy(el); stHandAt(stPalms[1], el, wr);
   };
   steerUpdate(0);
@@ -1149,7 +1149,10 @@ function poseRower(r, u, mode, T) {
   const s = r.side, cl = Math.cos(lean), sl = Math.sin(lean);
   const shY = 0.27 + 0.84 * cl, shX = r.sx - 0.84 * sl;
   const inner = r.sz - s * 0.28, outer = r.sz + s * 0.28;
-  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.33;
+  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.5;
+  // keep the blade well outside the hull wall at its depth
+  const hp = r.hullP, hsn = clamp((hp.htop - ty) / hp.hd, 0, 1), wallW = hp.hw * Math.sqrt(1 - hsn * hsn);
+  out = Math.max(out + 0.7, wallW + 1.45 - Math.abs(r.sz));
   let px = r.sx + tx, py = ty, pz = r.sz + s * out;
   // keep the tip within reach of the hands
   _dir.set(px - gx, py - gy, pz - gz);
