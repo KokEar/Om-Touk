@@ -57,7 +57,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
 renderer.setClearColor(0xcfe4f1);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0xcfe4f1, 150, 950);
-const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2600);
+const camera = new THREE.PerspectiveCamera(65, 1, 0.5, 2600);
 camera.position.set(0, 8, 40);
 
 const hemi = new THREE.HemisphereLight(0xdcecff, 0xa8946a, 0.95);
@@ -1714,7 +1714,7 @@ function updateVisuals(dt, wall) {
   }
 }
 
-const camera2 = new THREE.PerspectiveCamera(48, 1, 0.5, 2600);
+const camera2 = new THREE.PerspectiveCamera(65, 1, 0.5, 2600);
 const camPos2 = new THREE.Vector3(0, 8, 40), camLook2 = new THREE.Vector3();
 let splitOn = false, camSnap2 = true, camOrbit = 0;   // camOrbit: user-dragged horizontal angle around the boat (0 = front view, up to 70 degrees toward the back)
 function orbitDes(d, l) { if (!camOrbit) return; const x = d.x - l.x, z = d.z - l.z, c = Math.cos(camOrbit), n = Math.sin(camOrbit); d.x = l.x + x * c - z * n; d.z = l.z + x * n + z * c; }
@@ -1723,7 +1723,7 @@ splitLine.style.cssText = 'position:fixed;top:0;bottom:0;left:50%;width:4px;marg
 document.body.appendChild(splitLine);
 // where a follow camera wants to be for the given boats; returns the target fov
 function camGoal(hs, aspect, des, look) {
-  let fov = aspect < 1.1 ? 62 : 48, cx = 0, cz = 0, mn = 1e9, mx = -1e9;
+  let fov = 65, cx = 0, cz = 0, mn = 1e9, mx = -1e9;
   hs.forEach(b => { cx += b.x; cz += b.z; mn = Math.min(mn, b.x); mx = Math.max(mx, b.x); });
   cx /= hs.length; cz /= hs.length;
   const spread = mx - mn, two = hs.length > 1;
@@ -1732,7 +1732,6 @@ function camGoal(hs, aspect, des, look) {
   const lead = hs.reduce((m, b) => Math.max(m, b.v), 0);
   des.set(cx + 13 + Math.min(spread, 40) * 0.1, 3.9 + dist * 0.04, cz + dist);
   look.set(cx + 2.5, window.innerHeight < 520 && aspect > 1.1 ? -3.2 : 1.8, cz - 3);   // short landscape phone: aim lower so boats sit above the tap panel
-  fov += lead * 0.22 + (hs.some(b => b.boostT > 0) ? 4 : 0);
   if (G.state === 'results') { des.x += 10; des.y += 1; }
   if (G.state === 'countdown') { des.set(cx + dist * 0.95 + 4, 5.2 + dist * 0.05, cz + 0.8); look.set(cx - 12, 1.6, cz); }   // start: look from behind the stern down the course (boats run toward -x)
   return fov;
@@ -1750,7 +1749,7 @@ function updateCamera(dt, wall) {
   } else splitOn = false;
   camera.aspect = camera2.aspect = splitOn ? (W / 2) / H : W / H;
   const aspect = camera.aspect;
-  let des = new THREE.Vector3(), look = new THREE.Vector3(), fov = aspect < 1.1 ? 62 : 48;
+  let des = new THREE.Vector3(), look = new THREE.Vector3(), fov = 65;
   if (G.state === 'menu') {
     const a = wall * 0.12;
     des.set(-8 + Math.sin(a) * 8, 5.5 + Math.sin(a * 0.7) * 1.2, 31 + Math.cos(a) * 3);
