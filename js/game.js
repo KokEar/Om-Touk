@@ -676,12 +676,13 @@ function buildCourse() {
 /* ------------------------------------------------------------------ */
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
+const sheerTop = u => 0.82 + (u < 0 ? 0.75 : 0.3) * Math.pow(Math.abs(u), 4.5);   // stern (u<0) rises a bit higher than the bow
 function hullGeometry() {
   const N = 72, Mm = 14, pos = [], uv = [], idx = [];
   for (let i = 0; i <= N; i++) {
     const u = -1 + 2 * i / N, au = Math.abs(u), x = u * HL;
     const w = 0.12 + 0.88 * Math.pow(1 - Math.pow(au, 3.0), 0.7);
-    const top = 0.82 + 1.2 * Math.pow(au, 4.5);
+    const top = sheerTop(u);
     const d = 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
@@ -835,10 +836,10 @@ function makeApsara(styleIdx) {
   mesh(GEO.sph, white, head, 0.1, 0.22, 0.16, 0.065, 0.065, 0.065);
   // flowing scarf (two segments that lag each other)
   // arms
-  const armG = new THREE.CylinderGeometry(0.055, 0.045, 1, 8);
+  const upG = new THREE.CylinderGeometry(0.062, 0.047, 1, 12), foG = new THREE.CylinderGeometry(0.047, 0.03, 1, 12);   // tapered limbs
   const arm = () => {
-    const up = mk(armG, skin), fo = mk(armG, skin), hand = new THREE.Group(); root.add(hand);
-    mesh(GEO.sph, skin, hand, 0, 0.05, 0, 0.045, 0.075, 0.025);
+    const up = mk(upG, skin), fo = mk(foG, skin), el = mesh(GEO.sph, skin, root, 0, 0, 0, 0.049, 0.049, 0.049), hand = new THREE.Group(); root.add(hand);
+    mesh(GEO.sph, skin, hand, 0, 0.05, 0, 0.04, 0.07, 0.022);
     const fing = new THREE.Group(); fing.position.y = 0.09; hand.add(fing);   // fingers curl/flick as one fan
     for (let k = 0; k < 4; k++) {
       const z = (k - 1.5) * 0.026, len = k === 1 || k === 2 ? 0.11 : 0.09;
@@ -846,7 +847,7 @@ function makeApsara(styleIdx) {
     }
     const thumb = mesh(GEO.cone, skin, hand, 0.03, 0.08, 0, 0.018, 0.08, 0.018); thumb.rotation.z = -0.6;
     mesh(GEO.cyl, GOLD, hand, 0, 0.0, 0, 0.06, 0.035, 0.06);   // bracelet
-    return { up, fo, hand, fing };
+    return { up, fo, el, hand, fing };
   };
   const armR = arm(), armL = arm();
 
@@ -860,15 +861,15 @@ function makeApsara(styleIdx) {
   function doArm(A, shoulder, hand, pole, sd) {
     ik2(shoulder, hand, 0.31, 0.3, pole, T.elb, T.wr);
     aimV(A.up, shoulder, T.elb); aimV(A.fo, T.elb, T.wr);
-    A.hand.position.copy(T.wr);
+    A.hand.position.copy(T.wr); A.el.position.copy(T.elb);
     T.p.subVectors(T.wr, T.elb).normalize();
     A.hand.quaternion.setFromUnitVectors(UPv, T.p);
     // graceful wrist: flex, side-to-side sweep and forearm twist, each lagging the arm (follow-through);
     // the two hands mirror each other with a half-beat offset
     const pp = curPh + (sd < 0 ? 0.9 : 0);
-    we.set(0.1, 0, 0.3 * Math.sin(pp - 0.9))   // wrists flex forwards/backwards only;
+    we.set(0.12, 0, 0.18 * Math.sin(pp - 0.9))   // wrists flex forwards/backwards only;
     wq.setFromEuler(we); A.hand.quaternion.multiply(wq);
-    A.fing.rotation.x = -0.1 + 0.45 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers bloom open then curl back
+    A.fing.rotation.x = 0.05 + 0.3 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers bloom open then curl back
   }
 
   // low-pass filtered state: gives follow-through, removes any jerks
@@ -974,7 +975,7 @@ function makeBoat(si) {
     for (let i = 0; i <= N; i++) {
       const x = -HL + 2 * HL * i / N, hu = Math.abs(x / HL);
       const hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
-      const top = 0.82 + 1.2 * Math.pow(hu, 4.5), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
+      const top = sheerTop(x / HL), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
       const sn = clamp((top - YD) / hd, 0, 1), w = sn > 0.8 ? 0 : hw * Math.sqrt(1 - sn * sn) * 0.94;
       pos.push(x, YD, -w, x, YD, w);
     }
@@ -987,9 +988,9 @@ function makeBoat(si) {
   const anim = root.userData.anim = { flags: [], tassels: [] };   // stern flag + tassels flutter in updateVisuals
   // bow: gilded prow with a team flag; stern: upturned tail with red / black tassels (as on real racing boats)
   {
-    const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 2.15, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
-    mesh(GEO.sph, GOLD, body, HL, 1.9, 0, 0.14, 0.14, 0.14);
-    mesh(GEO.cyl, M(0xe9c477), body, -HL + 0.6, 2.7, 0, 0.035, 1.8, 0.035);                                   // flag pole
+    const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 1.27, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
+    mesh(GEO.sph, GOLD, body, HL, 1.02, 0, 0.14, 0.14, 0.14);
+    mesh(GEO.cyl, M(0xe9c477), body, -HL + 0.6, 2.1, 0, 0.035, 1.8, 0.035);                                   // flag pole
     if (s.num) {   // boat number on the stern flag, readable from both sides
       const ft = canvasTex(160, 100, (c, w, h) => {
         c.fillStyle = '#' + s.shirts[0].toString(16).padStart(6, '0'); c.fillRect(0, 0, w, h);
@@ -1000,18 +1001,18 @@ function makeBoat(si) {
       for (const side of [0, 1]) {
         const fg = new THREE.PlaneGeometry(1.2, 0.75, 10, 1); anim.flags.push({ g: fg, w: 1.2, flip: side });
         const fl = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: ft }));
-        fl.position.set(-HL, 3.35, side ? -0.01 : 0.01); if (side) fl.rotation.y = PI; body.add(fl);
+        fl.position.set(-HL, 2.75, side ? -0.01 : 0.01); if (side) fl.rotation.y = PI; body.add(fl);
       }
     } else {
       const fgeo = new THREE.PlaneGeometry(0.95, 0.55, 10, 1); anim.flags.push({ g: fgeo, w: 0.95, flip: 0 });
       const flag = new THREE.Mesh(fgeo, new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
-      flag.position.set(-HL + 0.1, 3.35, 0); body.add(flag);
+      flag.position.set(-HL + 0.1, 2.75, 0); body.add(flag);
     }
-    const t = mesh(GEO.cone, GOLD, body, -HL - 0.05, 2.15, 0, 0.17, 0.7, 0.17); t.rotation.z = 0.5;
-    mesh(GEO.sph, GOLD, body, -HL, 1.9, 0, 0.14, 0.14, 0.14);
+    const t = mesh(GEO.cone, GOLD, body, -HL - 0.05, 1.72, 0, 0.17, 0.7, 0.17); t.rotation.z = 0.5;
+    mesh(GEO.sph, GOLD, body, -HL, 1.47, 0, 0.14, 0.14, 0.14);
     for (const ex of [-HL - 0.12, HL + 0.12]) [[0xd0202a, -0.17, 0.75], [0x111111, 0, 0.85], [0xf0861c, 0.17, 0.7]].forEach(([c, z, l]) => {
       const tm = M(c);
-      const tg = new THREE.Group(); tg.position.set(ex, 1.85, z); body.add(tg);   // pivot at the top so the tassel can swing
+      const tg = new THREE.Group(); tg.position.set(ex, ex < 0 ? 1.42 : 0.97, z); body.add(tg);   // pivot at the top so the tassel can swing
       mesh(GEO.cyl, tm, tg, 0, -l / 2, 0, 0.06, l, 0.06);
       mesh(GEO.sph, tm, tg, 0, 0, 0, 0.09, 0.09, 0.09);
       anim.tassels.push({ g: tg, ph: z * 9 + ex * 0.3, k: ex < 0 ? 1.2 : 0.8 });
@@ -1034,7 +1035,7 @@ function makeBoat(si) {
     const sx = 6.76 - i * 1.04;
     // keep every rower inside the hull: narrow the seat spacing where the hull narrows
     const hu = Math.abs(sx / HL), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
-    const htop = 0.82 + 1.2 * Math.pow(hu, 4.5), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
+    const htop = sheerTop(sx / HL), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
     const sn = clamp((htop - 0.27) / hd, 0, 0.98), halfW = hw * Math.sqrt(1 - sn * sn);
     const seatZ = clamp(halfW - 0.36, 0.26, 0.52), hullP = { hw, htop, hd };
     box(body, 0.34, 0.07, seatZ * 2 + 0.3, sx - 0.05, 0.22, 0, wood);
@@ -1066,7 +1067,8 @@ function makeBoat(si) {
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
   const apsara = makeApsara(sty);
-  const cap = apsara.root; cap.position.set(8.7, 0.93, 0); cap.scale.setScalar(0.85); body.add(cap);
+  const cap = apsara.root; box(body, 0.6, 0.07, 0.5, 8.5, 0.585, 0, wood);   // small wooden platform near the front of the boat
+  cap.position.set(8.5, 0.62, 0); cap.scale.setScalar(0.85); body.add(cap);
   const capT = null, capArms = [];
 
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
@@ -1677,7 +1679,7 @@ function updateVisuals(dt, wall) {
     const boost = b.boostT > 0 || (b.finished && G.state !== 'menu');
     b.liftS = (b.liftS || 0) + ((boost ? 1 : 0) - (b.liftS || 0)) * Math.min(1, dt * 3);
     const ph = tw * TAU / 7.5 * b.apsara.speed + b.id * 0.7;
-    b.cap.position.y = 0.93 + b.liftS * 0.04;
+    b.cap.position.y = 0.62 + b.liftS * 0.04;
     b.apsara.update(ph, b.liftS, dt);
     // steersman sweeps the steering oar
     b.steerUpdate(tw * 1.4 + b.id);
