@@ -1170,7 +1170,9 @@ function makeBoat(si) {
     const seatZ = clamp(halfW - 0.36, 0.26, 0.52), hullP = { hw, htop, hd };
     box(body, 0.34, 0.07, seatZ * 2 + 0.3, sx - 0.05, 0.22, 0, wood);
     for (const sd of [-1, 1]) {
-      const R = new THREE.Group(); R.position.set(sx, 0.27, sd * seatZ); body.add(R);
+      const standing = i >= 3, by = standing ? 0.78 : 0.27;   // front 3 couples sit; the other 11 stand and row
+      const R = new THREE.Group(); R.position.set(sx, by, sd * seatZ); body.add(R);
+      if (standing) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.085, by + 0.11, 8), M(0x2b2b3a)); leg.position.set(0.02, 0.17 - (by + 0.11) / 2, 0); R.add(leg); }
       const shirt = shirtMats[i % 2];
       const t = new THREE.Mesh(torsoGeo, shirt); t.position.y = 0.5; R.add(t);
       const hip = new THREE.Mesh(shoulderG, shirt); hip.position.set(0.02, 0.17, 0); hip.scale.set(1.3, 0.9, 2.0); R.add(hip);   // seated hips
@@ -1192,7 +1194,7 @@ function makeBoat(si) {
       // blade is placed in the un-scaled shaft space → compensate for shaft scale
       blade.position.y = -0.5 + 0.2 / L_SHAFT; blade.scale.set(1, 1 / L_SHAFT, 1); shaft.add(blade);
       body.add(armA, armB, shaft);
-      rowers.push({ hullP, R, side: sd, sx, sz: sd * seatZ, armA, armB, shaft, off: (rnd() - 0.5) * 0.9, i });
+      rowers.push({ by, hullP, R, side: sd, sx, sz: sd * seatZ, armA, armB, shaft, off: (rnd() - 0.5) * 0.9, i });
     }
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
@@ -1286,12 +1288,14 @@ function poseRower(r, u, mode, T) {
   const lean = -0.28 + 0.46 * (1 - q);
   r.R.rotation.z = lean;
   const s = r.side, cl = Math.cos(lean), sl = Math.sin(lean);
-  const shY = 0.27 + 0.84 * cl, shX = r.sx - 0.84 * sl;
+  const shY = r.by + 0.84 * cl, shX = r.sx - 0.84 * sl;
   const inner = r.sz - s * 0.28, outer = r.sz + s * 0.28;
-  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.65;
+  const ex = 0;   // couples 11-14 row at a different rate: their oars work in a wider lane so they never touch couple 10's oars
+  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * (0.65 + ex);
   // keep the blade well outside the hull wall at its depth
   const hp = r.hullP, hsn = clamp((hp.htop - ty) / hp.hd, 0, 1), wallW = hp.hw * Math.sqrt(1 - hsn * hsn);
   out = Math.max(out + 0.7, wallW + 1.45 - Math.abs(r.sz));
+  out += ex;
   let px = r.sx + tx, py = ty, pz = r.sz + s * out;
   // keep the tip within reach of the hands
   _dir.set(px - gx, py - gy, pz - gz);
@@ -1796,6 +1800,10 @@ function updateVisuals(dt, wall) {
     const base = G.state === 'menu' ? tw / 1.15 : T / I;
     for (const r of b.rowers) {
       u = frac(base + 0.25 + r.off * chaos + (G.state === 'menu' ? r.off * 0.15 : 0));
+      if (r.i >= 10) {   // couples 11-14: pull and forward swing run at the same speed as couples 1-10 and start together, but the lift out of the water is slow (waiting for couples 1-10), so they row once per two strokes of the others
+        const m0 = (base + 0.25 + (G.state === 'menu' ? r.off * 0.15 : 0)) % 2, m = m0 < 0 ? m0 + 2 : m0;
+        { const t = (m - 0.5) / 1.5; u = m < 0.5 ? m : 0.5 + 0.5 * (0.3 * t + 0.7 * t * t * t); }   // pull at normal speed, then the oar keeps moving: slow lift that steadily speeds up into the forward swing, landing with couples 1-10
+      }
       const o = poseRower(r, u, mode, tw);
       r.last = u;
       // paddle splash when the blade enters the water during drive
