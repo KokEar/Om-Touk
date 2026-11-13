@@ -1821,7 +1821,7 @@ function updateCamera(dt, wall) {
     des.set(-8 + Math.sin(a) * 8, 5.5 + Math.sin(a * 0.7) * 1.2, 31 + Math.cos(a) * 3);
     look.set(-27 + Math.sin(a * 0.8) * 3, 2.4, 5);
   } else {
-    const hs = splitOn ? [vb[0]] : (vb.length ? vb : [boats[0]]);
+    const hs = splitOn || (G.mode === 3 && vb.length) ? [vb[0]] : (vb.length ? vb : [boats[0]]);   // online 1v1: always follow my own boat, not the midpoint between both
     fov = camGoal(hs, aspect, des, look); orbitDes(des, look);
   }
   const k = camSnap ? 1 : 1 - Math.exp(-dt * 3.2);
