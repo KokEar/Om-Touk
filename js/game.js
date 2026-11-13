@@ -338,6 +338,7 @@ function hullTexture(s) {
     // upper half: rim (top) → keel (bottom); then mirrored for the other side
     paintHull(c, W, HH, s.hull, s.dark, s.hull2, s.stripes, s.stripeW, s.centre, s.stripeSz);   // photo-style painted hull in the boat's own colour
     if (s.skin && skinReady(s.skin)) { c.drawImage(SKINS.get(s.skin), 0, 0, W, HH); c.fillStyle = '#f6c21c'; c.fillRect(0, 0, W, HH * 0.035); }   // uploaded picture replaces the painted skin
+    if (s.bow && skinReady(s.bow)) { const im = SKINS.get(s.bow), bw = W * 0.26, bh = HH * 0.85, k = Math.min(bw / im.naturalWidth, bh / im.naturalHeight), w = im.naturalWidth * k, h = im.naturalHeight * k; c.drawImage(im, W * 0.11 - w / 2, HH * 0.52 - h / 2, w, h); }   // picture drawn over the front colour (canvas x = 0 is the bow: hull textures are mirrored)
     c.save(); c.translate(0, H); c.scale(1, -1); c.drawImage(c.canvas, 0, 0, W, HH, 0, 0, W, HH); c.restore();
   });
   tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
@@ -2265,15 +2266,16 @@ const hex6 = n => '#' + n.toString(16).padStart(6, '0');
 const clean = v => String(v == null ? '' : v).replace(/[^\p{L}\p{M}\p{N} _-]/gu, '').trim().slice(0, 16);   // names reach innerHTML (HUD) → letters/digits only
 const col = v => Number.isInteger(v) && v >= 0 && v <= 0xffffff ? v : 0x888888;
 const strHash = t => { let h = 0; for (let i = 0; i < t.length; i += 97) h = (h * 31 + t.charCodeAt(i)) | 0; return h + ':' + t.length; };
-const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '') + '-' + s.style + '-' + (s.hull2 != null ? s.hull2 : '') + '-' + (s.stripes || []).join(',') + '/' + (s.stripeSz || []).join(',') + '-' + (s.stripeW == null ? 1 : s.stripeW) + '-' + (s.centre != null ? s.centre : '');
+const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '') + '-' + s.style + '-' + (s.hull2 != null ? s.hull2 : '') + '-' + (s.stripes || []).join(',') + '/' + (s.stripeSz || []).join(',') + '-' + (s.stripeW == null ? 1 : s.stripeW) + '-' + (s.centre != null ? s.centre : '') + '-' + (s.bow ? strHash(s.bow) : '');
 function mk(o) {   // build a scheme from stored / received data (never trust it)
   o = o || {}; const sh = col(o.sh), en = clean(o.en) || 'Boat';
   return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, hull2: o.h2 == null ? null : col(o.h2), stripes: [0, 1, 2, 3].map(i => Array.isArray(o.zs) && o.zs[i] != null ? col(o.zs[i]) : null), stripeSz: [0, 1, 2, 3].map(i => Array.isArray(o.zz) && Number.isInteger(o.zz[i]) ? clamp(o.zz[i], 1, 6) : 3), centre: o.zc == null ? null : col(o.zc), stripeW: Number.isInteger(o.zw) ? clamp(o.zw, 0, 2) : 1, style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
     num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3),
     shirt: o.sc == null ? null : col(o.sc), oar: o.oc == null ? null : col(o.oc), pole: o.pc == null ? null : col(o.pc),
+    bow: typeof o.bw === 'string' && o.bw.length <= 700000 && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(o.bw) ? o.bw : '',
     skin: typeof o.img === 'string' && o.img.length <= 900000 && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(o.img) ? o.img : '' };
 }
-const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, h2: s.hull2, zs: s.stripes, zz: s.stripeSz, zc: s.centre, zw: s.stripeW, n: s.num, img: s.skin, sc: s.shirt, oc: s.oar, pc: s.pole });
+const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, h2: s.hull2, zs: s.stripes, zz: s.stripeSz, zc: s.centre, zw: s.stripeW, n: s.num, img: s.skin, bw: s.bow, sc: s.shirt, oc: s.oar, pc: s.pole });
 const shade = (c, f) => ((((c >> 16) & 255) * f) << 16 | (((c >> 8) & 255) * f) << 8 | ((c & 255) * f)) >>> 0;
 let GARAGE = [];
 try { GARAGE = (JSON.parse(localStorage.getItem('omtouk-garage')) || []).slice(0, MAXB).map(mk); } catch (e) { }
@@ -2290,7 +2292,8 @@ function fixPicks() {   // after deleting / editing boats: keep both picks valid
 const curPick = () => PICK.who === 2 && G.mode === 2 ? PICK.p2 : PICK.me;
 function setModel(i, sc) {
   const b = boats[i]; if (keyOf(b.scheme) === keyOf(sc)) return;
-  if (sc.skin && !skinReady(sc.skin)) { loadSkin(sc.skin, applyModels); return; }   // decode the picture first, then swap
+  if (sc.skin && !skinReady(sc.skin)) { loadSkin(sc.skin, applyModels); return; }
+  if (sc.bow && !skinReady(sc.bow)) { loadSkin(sc.bow, applyModels); return; }   // decode the picture first, then swap
   [b.root, b.wake].forEach(o => { scene.remove(o); o.traverse(n => { if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => { if (m.map && m.map !== wakeTex) m.map.dispose(); }); }); });
   Object.assign(b, makeBoat(sc), { name: sc });
 }
@@ -2312,6 +2315,7 @@ function boatSvg(s, id) {
       if (st.length) for (let x = -6, k = 0; x < 100; k++) { const hb = st[k % st.length][1] * 1.17; z += P(st[k % st.length][0], 'M' + x + ' 12 h' + hb + ' L' + (x + hb - 3) + ' 40 H' + (x - 3) + 'Z'); x += hb; }
       return '<g clip-path="url(#cp' + id + ')"><defs><clipPath id="zc' + id + '"><path d="M0 12 H' + (xl + 3) + ' L' + xl + ' 40 H0Z M' + (xr + 3) + ' 12 H96 V40 H' + xr + 'Z"/></clipPath></defs><g clip-path="url(#zc' + id + ')">' + z + '</g>' + P(s.centre, 'M' + (xl + 3) + ' 12 H' + (xr + 3) + ' L' + xr + ' 40 H' + xl + 'Z') + '</g>'; })() +
     (s.skin ? '<image href="' + s.skin + '" x="3" y="12" width="90" height="28" preserveAspectRatio="none" clip-path="url(#cp' + id + ')"/><path d="' + hp + '" fill="none" stroke="#f6c21c" stroke-width="1.6"/>' : '') +
+    (s.bow ? '<image href="' + s.bow + '" x="2" y="19" width="24" height="24" preserveAspectRatio="xMidYMid meet" clip-path="url(#cp' + id + ')"/>' : '') +
     '<path d="M10 22 H86" stroke="#f6c21c" stroke-width="1.2" opacity=".8"/>' +
     '<g fill="' + hex6(s.shirt != null ? s.shirt : 0xf7c71c) + '">' + [20, 30, 40, 50, 60, 70].map(x => '<circle cx="' + x + '" cy="13" r="3.4"/>').join('') + '</g>' +
     '<g stroke="' + hex6(s.pole != null ? s.pole : 0xf3f0e6) + '" stroke-width="1.6" stroke-linecap="round">' + [20, 40, 60].map(x => '<path d="M' + x + ' 13 L' + (x - 7) + ' 31"/>').join('') + '</g>' +
@@ -2364,7 +2368,7 @@ $('btnDelBoat').onclick = () => {
   applyModels(); renderPick();
 };
 /* custom boat dialog */
-const CB = { skin: '', edit: -1 };
+const CB = { skin: '', bow: '', edit: -1 };
 const CBS = [['cbZebraOn', 'cbStripe', 0xffffff, 'cbSz0'], ['cbMix2On', 'cbStripe2', 0x111111, 'cbSz1'], ['cbZ3On', 'cbStripe3', 0xe53935, 'cbSz2'], ['cbZ4On', 'cbStripe4', 0xffd23f, 'cbSz3']];
 const cbStripes = () => CBS.map(r => $(r[0]).checked ? parseInt($(r[1]).value.slice(1), 16) : null);   // up to 4 zebra colours
 const cbSizes = () => CBS.map(r => +$(r[3]).value);
@@ -2372,11 +2376,38 @@ const cbCentreVal = () => $('cbCenterOn').checked ? parseInt($('cbCenter').value
 const cbHullVal = () => $('cbHullOn').checked ? parseInt($('cbHull').value.slice(1), 16) : 0xffffff;   // hull colour unticked → white
 function cbPreview() {
   const hull = cbHullVal(), sh = parseInt($('cbCrew').value.slice(1), 16);
-  $('cbPrev').innerHTML = boatSvg(mk({ hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, img: CB.skin, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
-  $('cbClear').classList.toggle('hidden', !CB.skin);
+  $('cbPrev').innerHTML = boatSvg(mk({ hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, img: CB.skin, bw: CB.bow, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
+  $('cbClear').classList.toggle('hidden', !CB.skin); $('cbBowClear').classList.toggle('hidden', !CB.bow);
+  $('btnCbBow').querySelector('i').textContent = CB.bow ? 'EDIT FRONT DRAWING' : 'DRAW FRONT PICTURE';
   $('btnCbUpload').querySelector('i').textContent = CB.skin ? 'CHANGE PICTURE' : 'UPLOAD PICTURE';
 }
 $('btnCbUpload').onclick = () => $('cbFile').click();
+$('btnCbBow').onclick = () => {   // white drawing board: draw, save → picture covers the front colour
+  const cv = $('drawCv'), x = cv.getContext('2d'); x.clearRect(0, 0, 512, 512);
+  if (CB.bow) { const im = new Image(); im.onload = () => x.drawImage(im, 0, 0, 512, 512); im.src = CB.bow; }
+  DRAW.hist = []; $('drawUndo').disabled = true; DRAW.erase = false; $('drawEr').textContent = 'Eraser'; $('drawDlg').classList.remove('hidden');
+};
+const DRAW = { erase: false, on: false, lx: 0, ly: 0, hist: [] };   // hist: snapshots for Undo
+(() => {
+  const cv = $('drawCv'), x = cv.getContext('2d'); x.lineCap = x.lineJoin = 'round';
+  const snap = () => { DRAW.hist.push(x.getImageData(0, 0, 512, 512)); if (DRAW.hist.length > 30) DRAW.hist.shift(); $('drawUndo').disabled = false; };
+  const pt = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * 512 / r.width, (e.clientY - r.top) * 512 / r.height]; };
+  const seg = (ax, ay, bx, by) => { x.globalCompositeOperation = DRAW.erase ? 'destination-out' : 'source-over'; x.strokeStyle = $('drawCol').value; x.lineWidth = +$('drawSz').value; x.beginPath(); x.moveTo(ax, ay); x.lineTo(bx, by); x.stroke(); };
+  cv.onpointerdown = e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); snap(); DRAW.on = true; [DRAW.lx, DRAW.ly] = pt(e); seg(DRAW.lx, DRAW.ly, DRAW.lx + 0.01, DRAW.ly); };
+  cv.onpointermove = e => { if (!DRAW.on) return; const [px, py] = pt(e); seg(DRAW.lx, DRAW.ly, px, py); DRAW.lx = px; DRAW.ly = py; };
+  cv.onpointerup = cv.onpointercancel = () => { DRAW.on = false; };
+  $('drawEr').onclick = () => { DRAW.erase = !DRAW.erase; $('drawEr').textContent = DRAW.erase ? 'Pen' : 'Eraser'; };
+  $('drawCol').oninput = () => { DRAW.erase = false; $('drawEr').textContent = 'Eraser'; };
+  $('drawUndo').onclick = () => { const d = DRAW.hist.pop(); if (d) x.putImageData(d, 0, 0); $('drawUndo').disabled = !DRAW.hist.length; };
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !$('drawDlg').classList.contains('hidden')) { e.preventDefault(); e.stopPropagation(); $('drawUndo').click(); } }, true);
+  $('drawClr').onclick = () => { snap(); x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, 512, 512); };
+  $('drawNo').onclick = () => $('drawDlg').classList.add('hidden');
+  $('drawOk').onclick = () => {
+    const d = x.getImageData(0, 0, 512, 512).data; let any = false; for (let i = 3; i < d.length; i += 4) if (d[i]) { any = true; break; }
+    CB.bow = any ? cv.toDataURL('image/png') : ''; $('drawDlg').classList.add('hidden'); cbPreview();
+  };
+})();
+$('cbBowClear').onclick = () => { CB.bow = ''; cbPreview(); };
 $('cbClear').onclick = () => { CB.skin = ''; cbPreview(); };
 $('cbNum').addEventListener('keydown', e => e.stopPropagation());
 $('cbNum').addEventListener('input', () => { $('cbNum').value = $('cbNum').value.replace(/\D/g, '').slice(0, 3); cbPreview(); });
@@ -2401,7 +2432,7 @@ $('cbDanceGrid').addEventListener('click', e => { const b = e.target.closest('bu
 function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new one
   CB.edit = edit;
   const s = edit >= 0 ? GARAGE[edit] : null;
-  CB.skin = s ? s.skin : ''; $('cbNum').value = s ? s.num : ''; $('cbName').value = s ? s.kh : '';
+  CB.skin = s ? s.skin : ''; CB.bow = s ? s.bow : ''; $('cbNum').value = s ? s.num : ''; $('cbName').value = s ? s.kh : '';
   $('cbShirt').value = hex6(s && s.shirt != null ? s.shirt : 0xf7c71c); $('cbOar').value = hex6(s && s.oar != null ? s.oar : 0xf3f0e6); $('cbPole').value = hex6(s && s.pole != null ? s.pole : 0xe9c477);
   CBS.forEach((r, i) => { const v = s && s.stripes ? s.stripes[i] : null; $(r[0]).checked = v != null; $(r[1]).value = hex6(v != null ? v : r[2]); $(r[3]).value = s && s.stripeSz ? s.stripeSz[i] : 3; });
   $('cbStripeW').value = s ? s.stripeW : 1; $('cbCenterOn').checked = !!(s && s.centre != null); $('cbCenter').value = hex6(s && s.centre != null ? s.centre : 0xffd23f);
@@ -2425,7 +2456,7 @@ $('btnCbCancel').onclick = () => $('customBoat').classList.add('hidden');
 $('btnCbSave').onclick = () => {
   const ed = CB.edit; if (ed < 0 && GARAGE.length >= MAXB) return;
   const hull = cbHullVal(), sh = parseInt($('cbCrew').value.slice(1), 16), nm = clean($('cbName').value) || (ed >= 0 ? GARAGE[ed].kh : 'Custom ' + (GARAGE.length + 1));
-  const s = mk({ kh: nm, en: nm, hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, c: 1, y: +$('cbDance').value, n: $('cbNum').value, img: CB.skin, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
+  const s = mk({ kh: nm, en: nm, hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, c: 1, y: +$('cbDance').value, n: $('cbNum').value, img: CB.skin, bw: CB.bow, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
   if (GARAGE.some((g, gi) => gi !== ed && keyOf(g) === keyOf(s))) { alert('You already have this boat. · មានទូកនេះរួចហើយ'); return; }
   if (ed >= 0) { const old = GARAGE[ed]; GARAGE[ed] = s; if (PICK.me === old) PICK.me = s; if (PICK.p2 === old) PICK.p2 = s; } else GARAGE.push(s);
   saveGarage();

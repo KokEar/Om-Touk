@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:wght@400;600;700&family=Moul&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=21">
+<link rel="stylesheet" href="css/style.css?v=22">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -145,6 +145,7 @@
       <div class="zrow"><div class="zcell"><div class="mixrow"><input type="checkbox" id="cbZ3On" title="Zebra colour 3"><input id="cbStripe3" type="color" value="#e53935"></div><div class="mixrow"><span>ទទឹង · Size</span><input id="cbSz2" type="range" min="1" max="6" step="1" value="3"></div></div>
       <div class="zcell"><div class="mixrow"><input type="checkbox" id="cbZ4On" title="Zebra colour 4"><input id="cbStripe4" type="color" value="#ffd23f"></div><div class="mixrow"><span>ទទឹង · Size</span><input id="cbSz3" type="range" min="1" max="6" step="1" value="3"></div></div></div>
       <div class="mixrow"><input type="checkbox" id="cbCenterOn" title="Paint the centre of the boat"><input id="cbCenter" type="color" value="#ffd23f"><span>កណ្ដាល · Centre paint</span></div>
+      <div class="cbfile"><button id="btnCbBow" type="button" class="big small alt"><b>គូររូបលើពណ៌ក្បាល</b><i>DRAW FRONT PICTURE</i></button><button id="cbBowClear" type="button" class="link hidden">✕ Remove</button></div>
       <div class="mixrow"><span>កណ្ដាល · Centre size</span><input id="cbStripeW" type="range" min="0" max="2" step="1" value="1"></div>
     </div>
     <div class="cbcols">
@@ -168,6 +169,16 @@
       <button id="btnCbSave" class="big small green"><b>រក្សាទុក</b><i>SAVE</i></button>
       <button id="btnCbCancel" class="big small alt"><b>បោះបង់</b><i>CANCEL</i></button>
     </div>
+  </div>
+</div>
+
+<!-- ============ DRAW FRONT PICTURE ============ -->
+<div id="drawDlg" class="overlay hidden" style="z-index:50">
+  <div class="card" style="width:min(720px,100%)">
+    <h3>គូររូប · Draw on the front</h3>
+    <canvas id="drawCv" width="512" height="512" style="width:min(600px,100%,calc(100vh - 260px));aspect-ratio:1;background:conic-gradient(#cfd6e4 25%,#eef1f8 0 50%,#cfd6e4 0 75%,#eef1f8 0) 0 0/24px 24px;border-radius:10px;touch-action:none;cursor:crosshair;box-shadow:0 0 0 3px #ffd23f"></canvas>
+    <div class="mixrow" style="justify-content:center;margin:10px 0"><input id="drawCol" type="color" value="#e53935" style="width:64px;height:40px"><input id="drawSz" type="range" min="2" max="40" value="8" title="Brush size"><button id="drawUndo" type="button" class="link" title="Undo (Ctrl+Z)" disabled>↶ Undo</button><button id="drawEr" type="button" class="link">Eraser</button><button id="drawClr" type="button" class="link">Clear</button></div>
+    <div class="btnrow"><button id="drawOk" class="big small green"><b>រក្សាទុក</b><i>SAVE</i></button><button id="drawNo" class="big small alt"><b>បោះបង់</b><i>CANCEL</i></button></div>
   </div>
 </div>
 
@@ -240,6 +251,6 @@
 
 <script src="lib/three.min.js"></script>
 <script src="lib/peerjs.min.js"></script>
-<script src="js/game.js?v=66"></script>
+<script src="js/game.js?v=74"></script>
 </body>
 </html>
