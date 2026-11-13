@@ -184,3 +184,63 @@ button.big.green:active{box-shadow:0 1px 0 #0a5324}
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:24px;font-weight:700;letter-spacing:.4em;text-indent:.4em;line-height:1.2;color:#fff;caret-color:var(--gold)}
 .codewrap input::placeholder{color:rgba(255,255,255,.28);letter-spacing:.4em;font-weight:600}
 .codewrap input:focus::placeholder{color:transparent}
+/* ---------- online lobby: boat picker ---------- */
+.boatpick{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:6px 0 14px}
+@media(max-width:560px){.boatpick{grid-template-columns:repeat(3,1fr)}}
+.boatpick button{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px 10px;border-radius:16px;
+  border:1.5px solid rgba(255,255,255,.14);background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  color:var(--cream);font-family:var(--kh);cursor:pointer;transition:transform .15s,border-color .15s,box-shadow .15s,background .15s}
+.boatpick button::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 50% 0%,var(--h),transparent 70%);opacity:.18;pointer-events:none;transition:opacity .15s}
+.boatpick button:hover:not(:disabled){transform:translateY(-3px);border-color:rgba(255,255,255,.4)}
+.boatpick button:hover:not(:disabled)::before{opacity:.32}
+.boatpick button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.boatpick button.on{border-color:var(--gold);background:linear-gradient(180deg,rgba(255,207,63,.2),rgba(255,207,63,.06));box-shadow:0 0 0 1px var(--gold),0 8px 22px rgba(0,0,0,.35),0 0 18px rgba(255,207,63,.3)}
+.boatpick button.on::before{opacity:.35}
+.boatpick button.on::after{content:"✓";position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#4a1500;font-size:12px;font-weight:800;line-height:20px;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.boatpick button.taken{opacity:.35;cursor:not-allowed;filter:grayscale(.7)}
+.boatpick svg{position:relative;width:100%;max-width:84px;height:auto;display:block;filter:drop-shadow(0 4px 5px rgba(0,0,0,.35))}
+.boatpick b{position:relative;display:block;font-size:13px;font-weight:700;line-height:1.3}
+.boatpick small{position:relative;display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;opacity:.65;margin-top:-4px}
+
+.choose{width:100%;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:16px;border:1.5px solid rgba(255,255,255,.2);
+  background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.04));color:var(--cream);font-family:var(--kh);cursor:pointer;text-align:left;transition:border-color .15s,transform .15s}
+.choose:hover{border-color:var(--gold);transform:translateY(-1px)}
+.choose .cur{flex:0 0 70px}.choose .cur svg{width:100%;display:block;filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
+.choose .ct{flex:1;min-width:0}.choose .ct small{display:block;font-size:11px;letter-spacing:.06em;opacity:.7}
+.choose .ct b{display:block;font-size:18px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.choose .cnt{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.18)}
+.gcount{font-family:var(--kh);font-size:12px;padding:2px 9px;border-radius:99px;background:rgba(0,0,0,.3);color:var(--cream);vertical-align:middle;margin-left:6px}
+#garage .btnrow button:disabled{opacity:.4;cursor:not-allowed}
+.cbprev{width:150px;margin:0 auto 10px}.cbprev svg{width:100%;display:block;filter:drop-shadow(0 4px 6px rgba(0,0,0,.4))}
+.cbrow{display:flex;flex-direction:column;gap:5px;text-align:left;font-size:13px;margin:8px 0}
+.cbrow input[type=text],.cbrow input:not([type]){padding:9px 12px;border-radius:10px;border:2px solid rgba(255,207,63,.35);background:rgba(5,20,50,.7);color:var(--cream);font-size:16px;font-family:var(--kh)}
+.cbrow input:focus{outline:none;border-color:var(--gold)}
+.cbrow input[type=color]{width:100%;height:42px;padding:2px;border-radius:10px;border:2px solid rgba(255,207,63,.35);background:rgba(5,20,50,.7);cursor:pointer}
+.cbcols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ---------- full-screen boat dialogs (hide the 3D scene, icons only) ---------- */
+#garage,#customBoat{padding:0;background:radial-gradient(ellipse at 50% 0%,#17499a 0%,#0a2a5e 55%,#051430 100%);backdrop-filter:none}
+#garage .card,#customBoat .card{width:100%;height:100%;max-width:none;border-radius:0;border:0;box-shadow:none;background:none;backdrop-filter:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 20px;overflow:auto}
+#garage .card>*,#customBoat .card>*{width:min(820px,100%)}
+#garage h3{font-size:clamp(22px,3.4vw,32px);margin-bottom:18px}
+#garage .boatpick{grid-template-columns:repeat(5,1fr);gap:16px;margin:8px 0 26px}
+@media(max-width:700px){#garage .boatpick{grid-template-columns:repeat(3,1fr);gap:12px}}
+#garage .boatpick button{padding:18px 8px 14px}
+#garage .boatpick svg{max-width:120px}
+#garage .boatpick b{font-size:15px}
+#garage .btnrow{max-width:520px;margin:0 auto 12px}
+#garage>.card>#btnGarageDone{max-width:520px}
+#customBoat .card>*{width:min(480px,100%)}
+#customBoat .cbprev{width:200px}
+
+.cbfile{display:flex;align-items:center;gap:12px}
+.cbfile .big{flex:1;margin:0}
+.cbrow input#cbNum{letter-spacing:.2em;font-weight:700}
+#garage .btnrow{max-width:680px}@media(max-width:560px){#garage .btnrow{flex-wrap:wrap}#garage .btnrow .big{flex:1 1 40%}}
+#btnEditBoat{background:linear-gradient(180deg,#ffe066,#f5b400);color:#4a1500;border-color:#fff3c0;box-shadow:0 4px 0 #b37a00,0 6px 14px rgba(0,0,0,.35)}
+#btnEditBoat:hover:not(:disabled){filter:brightness(1.07)}
+#btnEditBoat i{opacity:.85}
+
+#customBoat .card,#garage .card{justify-content:flex-start}
+#customBoat .card::before,#customBoat .card::after,#garage .card::before,#garage .card::after{content:"";margin:auto;width:0;height:0}

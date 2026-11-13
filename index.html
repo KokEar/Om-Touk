@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:wght@400;600;700&family=Moul&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=18">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -47,18 +47,9 @@
       </div>
     </div>
 
-    <div class="group hidden" id="onlineBox">
-      <div id="olStart">
-        <button id="btnCreate" class="big small green"><b>បង្កើតបន្ទប់</b><i>CREATE ROOM</i></button>
-        <div class="orline"><b>ឬ</b> · or join a friend's room</div>
-        <div class="joinrow"><label class="codewrap" for="joinCode"><small class="codekh"><b>លេខកូដបន្ទប់</b></small><input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><button id="btnJoin" class="big small green"><b>ចូល</b><i>JOIN</i></button></div>
-      </div>
-      <div id="olRoom" class="hidden">
-        <div class="glabel">កូដបន្ទប់ <span>Room code</span></div>
-        <div class="roomcode"><b id="roomCode">—</b><button id="btnCopy" class="link">Copy</button></div>
-        <button id="btnLeave" class="link">ចាកចេញ · Leave room</button>
-      </div>
-      <div id="olStatus" class="olstatus"></div>
+    <div class="group">
+      <button id="btnChooseM" class="choose"></button>
+      <button id="btnChooseP2" class="choose hidden" style="margin-top:8px"></button>
     </div>
 
     <div class="group" id="grpDiff">
@@ -73,6 +64,89 @@
     <button id="btnStart" class="big green"><b>ចាប់ផ្ដើម</b><i>START RACE</i></button>
     <button id="btnHelp" class="link">របៀបលេង · How to play</button>
     <div class="foot"><span id="ctrlHint"></span></div>
+  </div>
+</div>
+
+<!-- ============ ONLINE LOBBY (route #lobby) ============ -->
+<div id="lobby" class="overlay hidden">
+  <div class="card">
+    <div class="ornament">❖ ❖ ❖</div>
+    <h3>បន្ទប់រង់ចាំអនឡាញ · Online Lobby</h3>
+    <div class="group" id="onlineBox">
+      <div id="olStart">
+        <button id="btnCreate" class="big small green"><b>បង្កើតបន្ទប់</b><i>CREATE ROOM</i></button>
+        <div class="orline"><b>ឬ</b> · or join a friend's room</div>
+        <div class="joinrow"><label class="codewrap" for="joinCode"><small class="codekh"><b>លេខកូដបន្ទប់</b></small><input id="joinCode" maxlength="5" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false"></label><button id="btnJoin" class="big small green"><b>ចូល</b><i>JOIN</i></button></div>
+      </div>
+      <div id="olRoom" class="hidden">
+        <div class="glabel">កូដបន្ទប់ <span>Room code</span></div>
+        <div class="roomcode"><b id="roomCode">—</b><button id="btnCopy" class="link">Copy</button></div>
+        <button id="btnLeave" class="link">ចាកចេញ · Leave room</button>
+      </div>
+      <div id="olStatus" class="olstatus"></div>
+    </div>
+
+    <div class="group">
+      <button id="btnChoose" class="choose"></button>
+      <div class="olstatus" id="peerPick"></div>
+    </div>
+    <div class="group hidden" id="lobbyDiff">
+      <div class="glabel">កម្រិត <span>Difficulty</span></div>
+      <div class="seg" id="segDiffL">
+        <button data-diff="easy"><b>ងាយ</b><i>Easy</i></button>
+        <button data-diff="normal" class="on"><b>មធ្យម</b><i>Normal</i></button>
+        <button data-diff="hard"><b>ពិបាក</b><i>Hard</i></button>
+      </div>
+    </div>
+    <button id="btnStartL" class="big green hidden"><b>ចាប់ផ្ដើម</b><i>START RACE</i></button>
+    <button id="btnBackL" class="link">← ត្រឡប់ក្រោយ · Back to menu</button>
+  </div>
+</div>
+
+<!-- ============ GARAGE DIALOG ============ -->
+<div id="garage" class="overlay hidden" style="z-index:30">
+  <div class="card wide">
+    <h3>ជ្រើសរើសទូក · Choose your boat<span id="garageWho"></span> <span class="gcount" id="garageCount"></span></h3>
+    <div class="boatpick" id="boatPick"></div>
+    <div class="btnrow">
+      <button id="btnCustom" class="big small"><b>ទូកផ្ទាល់ខ្លួន</b><i>+ CUSTOM BOAT</i></button>
+      <button id="btnEditBoat" class="big small"><b>កែទូក</b><i>EDIT BOAT</i></button>
+      <button id="btnDelBoat" class="big small alt"><b>លុបទូក</b><i>DELETE BOAT</i></button>
+    </div>
+    <button id="btnGarageDone" class="big small green"><b>រួចរាល់</b><i>DONE</i></button>
+  </div>
+</div>
+
+<!-- ============ CUSTOM BOAT DIALOG ============ -->
+<div id="customBoat" class="overlay hidden" style="z-index:40">
+  <div class="card">
+    <h3 id="cbTitle">ទូកផ្ទាល់ខ្លួន · Custom boat</h3>
+    <div class="cbprev" id="cbPrev"></div>
+    <div class="cbrow">រូបភាពទូក · Boat picture (resized to 3840 × 2160 to fill the boat)
+      <div class="cbfile">
+        <button id="btnCbUpload" type="button" class="big small alt"><b>ផ្ទុករូបភាព</b><i>UPLOAD PICTURE</i></button>
+        <button id="cbClear" type="button" class="link hidden">✕ Remove picture</button>
+      </div>
+      <input id="cbFile" type="file" accept="image/*" hidden>
+    </div>
+    <label class="cbrow">ឈ្មោះ · Name<input id="cbName" maxlength="16" placeholder="My boat" autocomplete="off" spellcheck="false"></label>
+    <label class="cbrow">លេខទូក · Boat number (shown on the stern flag)<input id="cbNum" inputmode="numeric" maxlength="3" placeholder="e.g. 7" autocomplete="off"></label>
+    <div class="cbcols">
+      <label class="cbrow">ពណ៌ទូក · Hull<input id="cbHull" type="color" value="#c8102e"></label>
+      <label class="cbrow">ពណ៌ទង់ · Flag<input id="cbCrew" type="color" value="#2f78e0"></label>
+    </div>
+    <div class="cbcols">
+      <label class="cbrow">ពណ៌ក្រុម · Crew shirt &amp; headband<input id="cbShirt" type="color" value="#f7c71c"></label>
+      <label class="cbrow">ពណ៌ចង្វា · Oar (shaft)<input id="cbPole" type="color" value="#e9c477"></label>
+    </div>
+    <div class="cbcols">
+      <label class="cbrow">ចុងចង្វា · Oar tip (blade)<input id="cbOar" type="color" value="#f3f0e6"></label>
+      <div></div>
+    </div>
+    <div class="btnrow">
+      <button id="btnCbSave" class="big small green"><b>រក្សាទុក</b><i>SAVE</i></button>
+      <button id="btnCbCancel" class="big small alt"><b>បោះបង់</b><i>CANCEL</i></button>
+    </div>
   </div>
 </div>
 
@@ -145,6 +219,6 @@
 
 <script src="lib/three.min.js"></script>
 <script src="lib/peerjs.min.js"></script>
-<script src="js/game.js?v=41"></script>
+<script src="js/game.js?v=64"></script>
 </body>
 </html>

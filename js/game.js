@@ -249,26 +249,78 @@ const scaleTex = canvasTex(128, 128, (c, w, h) => {
 scaleTex.wrapS = scaleTex.wrapT = THREE.RepeatWrapping;
 
 // Painted hull like a real Cambodian racing boat: green sheer, red/orange ornament band with gold diamonds and green leaves.
+// Painted hull in the style of a real Cambodian racing boat: coloured body, gold chain border, black-outlined gold leaf flourishes, an eye near the bow and a wreath roundel amidships. Only the body colour changes per boat.
+function paintHull(c, W, HH, hull, dark) {
+  const hx = n => '#' + n.toString(16).padStart(6, '0');
+  const GOLD = '#f2c230', GOLD2 = '#c98e12', HI = '#ffe27a', INK = '#14100a';
+  const g = c.createLinearGradient(0, 0, 0, HH); g.addColorStop(0, hx(hull)); g.addColorStop(0.55, hx(hull)); g.addColorStop(1, hx(dark));
+  c.fillStyle = g; c.fillRect(0, 0, W, HH);
+  // rim + chain border
+  c.fillStyle = GOLD; c.fillRect(0, 0, W, HH * 0.035);
+  c.fillStyle = INK; c.fillRect(0, HH * 0.035, W, HH * 0.012);
+  c.fillStyle = GOLD; c.fillRect(0, HH * 0.047, W, HH * 0.075);
+  c.fillStyle = GOLD2; for (let x = 0; x < W; x += 14) c.fillRect(x, HH * 0.047, 2, HH * 0.075);
+  c.strokeStyle = INK; c.lineWidth = 1.6; c.beginPath(); for (let x = 0; x <= W; x += 14) c.lineTo(x, HH * (0.06 + ((x / 14) % 2) * 0.045)); c.stroke();
+  c.fillStyle = INK; c.fillRect(0, HH * 0.122, W, HH * 0.012);
+  c.fillStyle = GOLD; c.fillRect(0, HH * 0.134, W, HH * 0.012);
+  // lower trim (mostly under the waterline)
+  c.fillStyle = INK; c.fillRect(0, HH * 0.56, W, HH * 0.012); c.fillStyle = GOLD; c.fillRect(0, HH * 0.572, W, HH * 0.02);
+  const cy = 0, K = 0.8;   // ornaments are drawn in a scaled space centred high on the hull so they stay above the waterline
+  const leaf = (x, y, len, wid, ang) => {
+    c.save(); c.translate(x, y); c.rotate(ang);
+    const p = (k) => { c.beginPath(); c.moveTo(0, 0); c.bezierCurveTo(len * 0.3 * k, -wid * k, len * 0.8 * k, -wid * 0.8 * k, len * k, 0); c.bezierCurveTo(len * 0.8 * k, wid * 0.8 * k, len * 0.3 * k, wid * k, 0, 0); };
+    p(1); c.fillStyle = GOLD; c.fill(); c.lineWidth = 3; c.strokeStyle = INK; c.stroke();
+    p(0.62); c.fillStyle = HI; c.fill();
+    c.restore();
+  };
+  const curl = (x, y, r, dir) => {
+    c.save(); c.translate(x, y); c.scale(dir, 1);
+    for (const [w, col] of [[11, INK], [6, GOLD]]) { c.strokeStyle = col; c.lineWidth = w; c.lineCap = 'round'; c.beginPath(); c.arc(0, 0, r, Math.PI * 0.2, Math.PI * 1.6); c.stroke(); }
+    c.restore();
+  };
+  const flourish = (x) => {
+    for (let k = -2; k <= 2; k++) leaf(x, cy + 6, 46, 13, -Math.PI / 2 + k * 0.62);
+    leaf(x + 8, cy + 8, 112, 15, 0.1); leaf(x - 8, cy + 8, 100, 14, Math.PI - 0.1);
+    curl(x + 62, cy + 18, 14, 1); curl(x - 62, cy + 18, 14, -1);
+  };
+  c.save(); c.translate(0, HH * 0.275); c.scale(K, K);
+  const eyeX = W * 0.8 / K, rdX = W * 0.5 / K;
+  for (let x = 130 / K; x < W / K; x += 270 / K) { if (Math.abs(x - rdX) < 150 || Math.abs(x - eyeX) < 130) continue; flourish(x); }
+  // wreath roundel
+  c.save(); c.translate(rdX, cy + 6);
+  c.fillStyle = INK; c.beginPath(); c.arc(0, 0, 40, 0, TAU); c.fill();
+  c.fillStyle = hx(dark); c.beginPath(); c.arc(0, 0, 35, 0, TAU); c.fill();
+  for (const sd of [-1, 1]) for (let k = 0; k < 7; k++) { const a = Math.PI * (0.5 + k / 6); c.save(); c.scale(sd, 1); c.translate(Math.cos(a) * 46, -Math.sin(a) * 46); c.rotate(Math.PI - a); c.fillStyle = GOLD; c.strokeStyle = INK; c.lineWidth = 2.2; c.beginPath(); c.ellipse(0, 0, 4.5, 13, 0, 0, TAU); c.fill(); c.stroke(); c.restore(); }
+  c.strokeStyle = '#c8102e'; c.lineWidth = 7; c.beginPath(); c.arc(0, 0, 49, Math.PI * 0.12, Math.PI * 0.88); c.stroke();
+  for (let k = -2; k <= 2; k++) leaf(0, 14, 22, 7, -Math.PI / 2 + k * 0.5);
+  c.fillStyle = GOLD; c.beginPath(); c.arc(0, 14, 5, 0, TAU); c.fill();
+  c.restore();
+  // eye with a gold curled brow, facing the bow
+  c.save(); c.translate(eyeX, cy + 6);
+  leaf(14, -12, 60, 11, -0.35); curl(-30, 6, 12, -1);
+  c.fillStyle = INK; c.beginPath(); c.ellipse(0, 0, 36, 24, 0, 0, TAU); c.fill();
+  c.fillStyle = GOLD; c.beginPath(); c.ellipse(0, 0, 32, 20, 0, 0, TAU); c.fill();
+  c.fillStyle = '#fff'; c.beginPath(); c.ellipse(1, 0, 22, 15, 0, 0, TAU); c.fill();
+  c.fillStyle = '#1c9a8a'; c.beginPath(); c.arc(3, 0, 12.5, 0, TAU); c.fill();
+  c.fillStyle = INK; c.beginPath(); c.arc(3, 0, 6.5, 0, TAU); c.fill();
+  c.fillStyle = '#fff'; c.beginPath(); c.arc(0, -4, 2.6, 0, TAU); c.fill();
+  c.restore();
+  c.restore();
+}
+
+const SKINS = new Map();   // uploaded hull pictures (data URL → Image)
+const skinReady = u => { const im = SKINS.get(u); return !!(im && im.complete && im.naturalWidth); };
+function loadSkin(u, cb) {
+  if (skinReady(u)) return cb();
+  let im = SKINS.get(u); if (!im) { im = new Image(); SKINS.set(u, im); im.src = u; }
+  im.addEventListener('load', cb, { once: true }); im.addEventListener('error', () => SKINS.delete(u), { once: true });
+}
 function hullTexture(s) {
   const W = 2048, H = 512, HH = H / 2;
   const tex = canvasTex(W, H, (c) => {
     // upper half: rim (top) → keel (bottom); then mirrored for the other side
-    const row = (y0, y1, col) => { c.fillStyle = col; c.fillRect(0, y0 * HH, W, (y1 - y0) * HH); };
-    row(0, 1, '#1f9a3f');                      // green hull
-    row(0, 0.05, '#f6c21c'); row(0.05, 0.09, '#0f6a2a');   // gold rim + dark green line
-    row(0.12, 0.5, '#e8541a');                 // orange-red ornament band
-    row(0.12, 0.15, '#f6c21c'); row(0.47, 0.5, '#f6c21c');
-    row(0.5, 0.56, '#0f6a2a'); row(0.56, 0.6, '#f6c21c');
-    row(0.72, 0.78, '#d81f2a');               // red stripe low on the hull
-    const T = 64;
-    for (let x = 0; x < W; x += T) {
-      const cx = x + T / 2, cy = HH * 0.31;
-      c.fillStyle = '#f6c21c'; c.beginPath(); c.moveTo(cx, cy - 22); c.lineTo(cx + 24, cy); c.lineTo(cx, cy + 22); c.lineTo(cx - 24, cy); c.closePath(); c.fill();
-      c.fillStyle = '#d81f2a'; c.beginPath(); c.moveTo(cx, cy - 12); c.lineTo(cx + 13, cy); c.lineTo(cx, cy + 12); c.lineTo(cx - 13, cy); c.closePath(); c.fill();
-      c.fillStyle = '#1f9a3f'; c.beginPath(); c.moveTo(x, HH * 0.15); c.lineTo(x + T / 2, HH * 0.24); c.lineTo(x + T, HH * 0.15); c.closePath(); c.fill();     // leaf teeth
-      c.beginPath(); c.moveTo(x, HH * 0.47); c.lineTo(x + T / 2, HH * 0.38); c.lineTo(x + T, HH * 0.47); c.closePath(); c.fill();
-      c.fillStyle = '#f6c21c'; c.beginPath(); c.arc(cx, HH * 0.67, 5, 0, TAU); c.fill();
-    }
+    paintHull(c, W, HH, s.hull, s.dark);   // photo-style painted hull in the boat's own colour
+    if (s.skin && skinReady(s.skin)) { c.drawImage(SKINS.get(s.skin), 0, 0, W, HH); c.fillStyle = '#f6c21c'; c.fillRect(0, 0, W, HH * 0.035); }   // uploaded picture replaces the painted skin
     c.save(); c.translate(0, H); c.scale(1, -1); c.drawImage(c.canvas, 0, 0, W, HH, 0, 0, W, HH); c.restore();
   });
   tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping; tex.anisotropy = 4;
@@ -898,7 +950,7 @@ function makeArmGeo(shirtHex, skinHex) {
 const ARM_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 
 function makeBoat(si) {
-  const s = SCHEMES[si];
+  const s = typeof si === 'object' ? si : SCHEMES[si], sty = typeof si === 'object' ? s.style : si;
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
 
@@ -929,8 +981,21 @@ function makeBoat(si) {
     const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 2.15, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
     mesh(GEO.sph, GOLD, body, HL, 1.9, 0, 0.14, 0.14, 0.14);
     mesh(GEO.cyl, M(0xe9c477), body, -HL + 0.6, 2.7, 0, 0.035, 1.8, 0.035);                                   // flag pole
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.55), new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
-    flag.position.set(-HL + 0.1, 3.35, 0); body.add(flag);
+    if (s.num) {   // boat number on the stern flag, readable from both sides
+      const ft = canvasTex(160, 100, (c, w, h) => {
+        c.fillStyle = '#' + s.shirts[0].toString(16).padStart(6, '0'); c.fillRect(0, 0, w, h);
+        c.strokeStyle = '#f6c21c'; c.lineWidth = 6; c.strokeRect(3, 3, w - 6, h - 6);
+        c.font = 'bold ' + (s.num.length > 2 ? 52 : 70) + 'px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.lineWidth = 8; c.strokeStyle = 'rgba(0,0,0,.55)'; c.strokeText(s.num, w / 2, h / 2 + 4); c.fillStyle = '#fff'; c.fillText(s.num, w / 2, h / 2 + 4);
+      });
+      for (const side of [0, 1]) {
+        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.75), new THREE.MeshBasicMaterial({ map: ft }));
+        fl.position.set(-HL, 3.35, side ? -0.01 : 0.01); if (side) fl.rotation.y = PI; body.add(fl);
+      }
+    } else {
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.55), new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
+      flag.position.set(-HL + 0.1, 3.35, 0); body.add(flag);
+    }
     const t = mesh(GEO.cone, GOLD, body, -HL - 0.05, 2.15, 0, 0.17, 0.7, 0.17); t.rotation.z = 0.5;
     mesh(GEO.sph, GOLD, body, -HL, 1.9, 0, 0.14, 0.14, 0.14);
     for (const ex of [-HL - 0.12, HL + 0.12]) [[0xd0202a, -0.17, 0.75], [0x111111, 0, 0.85], [0xf0861c, 0.17, 0.7]].forEach(([c, z, l]) => {
@@ -944,13 +1009,13 @@ function makeBoat(si) {
   // thwarts
   const wood = M(0xa9794a);
   const rowers = [], pairs = 14;
-  const YEL = 0xf7c71c, shirtMats = [M(YEL), M(YEL)], teamM = M(s.shirts[0]);   // yellow crew shirts as in the reference photo; team colour on the headband and flag
+  const YEL = s.shirt != null ? s.shirt : 0xf7c71c, shirtMats = [M(YEL), M(YEL)], teamM = shirtMats[0];   // one crew colour: shirts, sleeves and headbands all use the boat's Shirt colour (yellow by default); the flag has its own colour
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
   const torsoGeo = new THREE.CylinderGeometry(0.2, 0.145, 0.74, 14, 3).scale(0.85, 1, 1.18), neckG = new THREE.CylinderGeometry(0.055, 0.065, 0.16, 8), headG = new THREE.SphereGeometry(0.19, 10, 8);
   const hairG = new THREE.SphereGeometry(0.2, 10, 6, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 7, 5);
   const armG = new THREE.CylinderGeometry(0.07, 0.06, 1, 6), shaftG = new THREE.CylinderGeometry(0.035, 0.035, 1, 6), bladeG = new THREE.BoxGeometry(0.05, 0.6, 0.3);
-  const bladeM = M(0xf3f0e6), shaftM = M(0xe9d6a0);   // pale paddles
+  const bladeM = M(s.oar != null ? s.oar : 0xf3f0e6), shaftM = M(s.pole != null ? s.pole : 0xe9c477);   // two oar colours: shaft (pole) and tip (blade); defaults: wooden shaft, pale blade
   const L_SHAFT = 1.7;
   for (let i = 0; i < pairs; i++) {
     const sx = 6.76 - i * 1.04;
@@ -987,14 +1052,14 @@ function makeBoat(si) {
     }
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
-  const apsara = makeApsara(si);
+  const apsara = makeApsara(sty);
   const cap = apsara.root; cap.position.set(8.7, 0.93, 0); cap.scale.setScalar(0.85); body.add(cap);
   const capT = null, capArms = [];
 
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
   const SX = -8.5, SY = 0.55;
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
-  const stMat = M(0x9fd62e);   // high-visibility vest like the coxswain in the photo
+  const stMat = shirtMats[0];   // the steersman wears the same crew shirt colour as the rowers
   const stTr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12).scale(0.9, 1, 1.15), M(0x2b2b45)); stTr.position.set(0, 0.42, 0); steer.add(stTr);   // sarong / trousers
   const stTor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.7, 14, 3).scale(0.85, 1, 1.18), stMat); stTor.position.set(0, 1.03, 0); steer.add(stTor);   // rounded torso
   mesh(GEO.cyl, skins[2], steer, 0.01, 1.4, 0, 0.055, 0.16, 0.055);                       // neck
@@ -1008,8 +1073,8 @@ function makeBoat(si) {
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x111111), steer, 0.2, 1.57, z * 0.075, 0.03, 0.03, 0.03);   // eyes look toward the bow
   mesh(GEO.sph, skins[2], steer, 0.22, 1.5, 0, 0.04, 0.04, 0.04);                                         // nose
   for (const z of [-1, 1]) mesh(GEO.sph, stMat, steer, 0, 1.3, z * 0.25, 0.12, 0.12, 0.12);
-  const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1, 8), M(0xe9c477)); body.add(oarShaft);
-  const oarBlade = mesh(GEO.box, M(s.hull), body, 0, 0, 0, 0.07, 0.9, 0.34);
+  const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1, 8), M(s.pole != null ? s.pole : 0xe9c477)); body.add(oarShaft);
+  const oarBlade = mesh(GEO.box, M(s.oar != null ? s.oar : s.hull), body, 0, 0, 0, 0.07, 0.9, 0.34);
   const stUpG = new THREE.CylinderGeometry(0.085, 0.07, 1, 8), stForeG = new THREE.CylinderGeometry(0.06, 0.042, 1, 8);
   const stArms = [0, 1].map(() => [new THREE.Mesh(stUpG, stMat), new THREE.Mesh(stForeG, skins[2])]);   // sleeve + bare forearm
   stArms.forEach(p => p.forEach(m => body.add(m)));
@@ -1374,6 +1439,7 @@ function splash(b, n) {
 /*  Race flow                                                         */
 /* ------------------------------------------------------------------ */
 function setupRace() {
+  applyModels();
   const D = G.D = DIFFS[G.diffKey]; G.I = 60 / D.bpm;
   G.notes = genNotes(D);
   G.T = -3 * G.I; G.audStep = -6; G.cdShown = -9; G.finishWait = 0; G.paused = false;
@@ -1402,7 +1468,7 @@ function startRace() {
   NET.rmPending = NET.rmAsked = false; $('rematch').classList.add('hidden');
   setupRace();
   G.state = 'countdown';
-  ['menu', 'results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
+  ['menu', 'lobby', 'garage', 'customBoat', 'results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.remove('hidden');
   $('btnPause').style.display = G.mode === 3 ? 'none' : '';
   if (G.mode === 3) { SESS = { role: NET.role, code: NET.code, diff: G.diffKey }; saveSnap(true); }
@@ -1444,7 +1510,7 @@ function toMenu(keepRoom) {
   NET.waiting = false; clearTimeout(NET.waitTimer);
   G.state = 'menu'; G.paused = false; if (!keepRoom) { netClose(); saveSess(null); } refreshMenu();
   ['results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
-  $('hud').classList.add('hidden'); $('menu').classList.remove('hidden');
+  $('hud').classList.add('hidden'); showScreen();
   boats.forEach((b, i) => { Object.assign(b, { x: START_NOSE - BOW - 14 - [0, 7, 3, 10, 5][i], z: LANES[i], v: 0, sync: 0.5, human: false, finished: false, boostT: 0, combo: 0 }); });
 }
 
@@ -1764,7 +1830,7 @@ function bindSeg(id, attr, cb) {
   const root = $(id);
   root.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; root.querySelectorAll('button').forEach(x => x.classList.remove('on')); b.classList.add('on'); cb(b.dataset[attr]); });
 }
-bindSeg('segMode', 'mode', v => { if (+v !== 3) netClose(); G.mode = +v; updateCtrlHint(); refreshMenu(); });
+bindSeg('segMode', 'mode', v => { if (+v !== 3) netClose(); G.mode = +v; updateCtrlHint(); if (+v === 3) location.hash = '#lobby'; showScreen(); });
 bindSeg('segDiff', 'diff', v => { G.diffKey = v; });
 function updateCtrlHint() {
   $('ctrlHint').innerHTML = G.mode !== 2 ? 'គ្រាប់ចុច · Keys: <kbd>Space</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd> · ឬចុចអេក្រង់ tap' :
@@ -1805,6 +1871,184 @@ document.addEventListener('pointerdown', () => { if (SFX.ctx && SFX.ctx.state ==
 
 
 /* ------------------------------------------------------------------ */
+/*  Online lobby (route #lobby): choose a boat model, make/join room   */
+/* ------------------------------------------------------------------ */
+/* ---- boat garage: up to 10 boats (presets + custom), kept in localStorage ---- */
+const MAXB = 10;
+const hex6 = n => '#' + n.toString(16).padStart(6, '0');
+const clean = v => String(v == null ? '' : v).replace(/[^\p{L}\p{M}\p{N} _-]/gu, '').trim().slice(0, 16);   // names reach innerHTML (HUD) → letters/digits only
+const col = v => Number.isInteger(v) && v >= 0 && v <= 0xffffff ? v : 0x888888;
+const strHash = t => { let h = 0; for (let i = 0; i < t.length; i += 97) h = (h * 31 + t.charCodeAt(i)) | 0; return h + ':' + t.length; };
+const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '');
+function mk(o) {   // build a scheme from stored / received data (never trust it)
+  o = o || {}; const sh = col(o.sh), en = clean(o.en) || 'Boat';
+  return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
+    num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3),
+    shirt: o.sc == null ? null : col(o.sc), oar: o.oc == null ? null : col(o.oc), pole: o.pc == null ? null : col(o.pc),
+    skin: typeof o.img === 'string' && o.img.length <= 900000 && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(o.img) ? o.img : '' };
+}
+const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, n: s.num, img: s.skin, sc: s.shirt, oc: s.oar, pc: s.pole });
+const shade = (c, f) => ((((c >> 16) & 255) * f) << 16 | (((c >> 8) & 255) * f) << 8 | ((c & 255) * f)) >>> 0;
+let GARAGE = [];
+try { GARAGE = (JSON.parse(localStorage.getItem('omtouk-garage')) || []).slice(0, MAXB).map(mk); } catch (e) { }
+if (!GARAGE.length) GARAGE = SCHEMES.map((s, i) => mk({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], y: i }));
+function saveGarage() { try { localStorage.setItem('omtouk-garage', JSON.stringify(GARAGE.map(ser))); } catch (e) { } }
+const PICK = { me: GARAGE[0], p2: null, peer: null, who: 1 };   // me = Player 1 / you online, p2 = Player 2 (local 2-player), who = whose boat the garage dialog is choosing
+try { const k = sessionStorage.getItem('omtouk-boat'); const f = GARAGE.find(s => keyOf(s) === k); if (f) PICK.me = f; } catch (e) { }
+try { const k = sessionStorage.getItem('omtouk-boat2'); PICK.p2 = GARAGE.find(s => keyOf(s) === k) || null; } catch (e) { }
+function saveBoat() { try { sessionStorage.setItem('omtouk-boat', keyOf(PICK.me)); if (PICK.p2) sessionStorage.setItem('omtouk-boat2', keyOf(PICK.p2)); } catch (e) { } }
+function fixPicks() {   // after deleting / editing boats: keep both picks valid and different
+  if (!GARAGE.includes(PICK.me)) PICK.me = GARAGE[0];
+  if (!PICK.p2 || !GARAGE.includes(PICK.p2) || keyOf(PICK.p2) === keyOf(PICK.me)) PICK.p2 = GARAGE.find(s => keyOf(s) !== keyOf(PICK.me)) || null;
+}
+const curPick = () => PICK.who === 2 && G.mode === 2 ? PICK.p2 : PICK.me;
+function setModel(i, sc) {
+  const b = boats[i]; if (keyOf(b.scheme) === keyOf(sc)) return;
+  if (sc.skin && !skinReady(sc.skin)) { loadSkin(sc.skin, applyModels); return; }   // decode the picture first, then swap
+  [b.root, b.wake].forEach(o => { scene.remove(o); o.traverse(n => { if (n.material) (Array.isArray(n.material) ? n.material : [n.material]).forEach(m => { if (m.map && m.map !== wakeTex) m.map.dispose(); }); }); });
+  Object.assign(b, makeBoat(sc), { name: sc });
+}
+function otherFree() { return GARAGE.find(s => keyOf(s) !== keyOf(PICK.me)) || SCHEMES[0]; }
+function applyModels() {   // your boat: boats[0] in solo / local modes, your side in online; the other boat gets a different one from the garage
+  const my = G.mode === 3 && NET.role === 'guest' ? 1 : 0;
+  fixPicks();
+  let other = G.mode === 3 ? PICK.peer : G.mode === 2 ? PICK.p2 : null;
+  if (!other || keyOf(other) === keyOf(PICK.me)) other = GARAGE.find(s => keyOf(s) !== keyOf(PICK.me)) || mk({ en: 'Rival', hull: 0x888888, dark: 0x444444, sh: 0xaaaaaa });
+  setModel(my, PICK.me); setModel(1 - my, other);
+}
+function boatSvg(s, id) {
+  const h = hex6(s.hull), d = hex6(s.dark), f = hex6(s.shirts[0]);
+  const hp = 'M3 20 Q8 12 14 17 L82 17 Q88 12 93 20 Q86 38 62 39 L34 39 Q10 38 3 20Z';
+  return '<svg viewBox="0 0 96 48" aria-hidden="true"><defs><linearGradient id="bg' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + h + '"/><stop offset="1" stop-color="' + d + '"/></linearGradient><clipPath id="cp' + id + '"><path d="' + hp + '"/></clipPath></defs>' +
+    '<path d="' + hp + '" fill="url(#bg' + id + ')" stroke="#f6c21c" stroke-width="1.6"/>' +
+    (s.skin ? '<image href="' + s.skin + '" x="3" y="12" width="90" height="28" preserveAspectRatio="none" clip-path="url(#cp' + id + ')"/><path d="' + hp + '" fill="none" stroke="#f6c21c" stroke-width="1.6"/>' : '') +
+    '<path d="M10 22 H86" stroke="#f6c21c" stroke-width="1.2" opacity=".8"/>' +
+    '<g fill="' + hex6(s.shirt != null ? s.shirt : 0xf7c71c) + '">' + [20, 30, 40, 50, 60, 70].map(x => '<circle cx="' + x + '" cy="13" r="3.4"/>').join('') + '</g>' +
+    '<g stroke="' + hex6(s.pole != null ? s.pole : 0xf3f0e6) + '" stroke-width="1.6" stroke-linecap="round">' + [20, 40, 60].map(x => '<path d="M' + x + ' 13 L' + (x - 7) + ' 31"/>').join('') + '</g>' +
+    '<path d="M80 17 V3" stroke="#e9c477" stroke-width="1.5"/><rect x="80" y="2" width="14" height="10" fill="' + f + '"/>' + (s.num ? '<text x="87" y="9.6" font-size="7.5" font-weight="800" fill="#fff" text-anchor="middle" font-family="sans-serif">' + s.num + '</text>' : '') + '</svg>';
+}
+function renderPick() {
+  // lobby button: the boat you're racing with
+  fixPicks();
+  const two = G.mode === 2;
+  const chHtml = (id, bt, who) => '<span class="cur">' + boatSvg(bt, id) + '</span><span class="ct"><small>' + (two ? 'អ្នកលេង ' + who + ' · Player ' + who + ' — ' : '') + 'ជ្រើសរើសទូក · Choose your boat</small><b>' + bt.kh + '</b></span><span class="cnt">' + GARAGE.length + '/' + MAXB + '</span>';
+  $('btnChoose').innerHTML = chHtml('curL', PICK.me, 1); $('btnChooseM').innerHTML = chHtml('curM', PICK.me, 1);
+  $('btnChooseP2').classList.toggle('hidden', !two); if (two) $('btnChooseP2').innerHTML = chHtml('curP', PICK.p2 || PICK.me, 2);
+  if (!two) PICK.who = 1;
+  $('garageWho').textContent = two ? ' · P' + PICK.who : '';   // distinct svg ids: one of the two screens is always hidden
+  // garage dialog
+  const bp = $('boatPick'); bp.innerHTML = '';
+  GARAGE.forEach((s, i) => {
+    const b = document.createElement('button'); b.dataset.boat = i; b.style.setProperty('--h', hex6(s.hull));
+    const cp = curPick(), otherP = two ? (PICK.who === 2 ? PICK.me : PICK.p2) : (NET.ready ? PICK.peer : null);
+    const taken = otherP && keyOf(otherP) === keyOf(s);
+    b.classList.toggle('on', s === cp); b.classList.toggle('taken', !!taken); b.disabled = !!taken;
+    b.innerHTML = boatSvg(s, i) + '<b>' + s.kh + '</b><small>' + (s.custom ? 'Custom' : s.en) + '</small>';
+    bp.appendChild(b);
+  });
+  $('garageCount').textContent = GARAGE.length + ' / ' + MAXB;
+  $('btnCustom').disabled = GARAGE.length >= MAXB;
+  $('btnDelBoat').disabled = GARAGE.length <= 1;
+  const ps = NET.ready && PICK.peer;
+  $('peerPick').textContent = ps ? 'ដៃគូ · Opponent: ' + ps.kh : '';
+}
+function chooseBoat(s, send = true) {
+  if (PICK.who === 2 && G.mode === 2) PICK.p2 = s; else PICK.me = s;
+  saveBoat();
+  if (send && NET.ready && G.mode === 3) netSend({ t: 'boat', s: ser(s) });
+  applyModels(); renderPick();
+}
+$('boatPick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  chooseBoat(GARAGE[+b.dataset.boat]);
+});
+const openGarage = who => () => { PICK.who = who; renderPick(); $('garage').classList.remove('hidden'); };
+$('btnChoose').onclick = $('btnChooseM').onclick = openGarage(1); $('btnChooseP2').onclick = openGarage(2);
+$('btnGarageDone').onclick = () => $('garage').classList.add('hidden');
+$('btnDelBoat').onclick = () => {
+  if (GARAGE.length <= 1) return;
+  const cp = curPick(); if (!cp) return;
+  if (!confirm('Delete "' + cp.kh + '"? · លុបទូកនេះ?')) return;
+  GARAGE.splice(GARAGE.indexOf(cp), 1); saveGarage(); fixPicks(); saveBoat();
+  if (NET.ready && G.mode === 3) netSend({ t: 'boat', s: ser(PICK.me) });
+  applyModels(); renderPick();
+};
+/* custom boat dialog */
+const CB = { skin: '', edit: -1 };
+function cbPreview() {
+  const hull = parseInt($('cbHull').value.slice(1), 16), sh = parseInt($('cbCrew').value.slice(1), 16);
+  $('cbPrev').innerHTML = boatSvg(mk({ hull, dark: shade(hull, 0.55), sh, img: CB.skin, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
+  $('cbClear').classList.toggle('hidden', !CB.skin);
+  $('btnCbUpload').querySelector('i').textContent = CB.skin ? 'CHANGE PICTURE' : 'UPLOAD PICTURE';
+}
+$('btnCbUpload').onclick = () => $('cbFile').click();
+$('cbClear').onclick = () => { CB.skin = ''; cbPreview(); };
+$('cbNum').addEventListener('keydown', e => e.stopPropagation());
+$('cbNum').addEventListener('input', () => { $('cbNum').value = $('cbNum').value.replace(/\D/g, '').slice(0, 3); cbPreview(); });
+$('cbFile').onchange = e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f || !/^image\//.test(f.type)) return;
+  if (f.size > 15e6) { alert('Picture too large (max 15 MB). · រូបភាពធំពេក'); return; }
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => {
+    // hull skin = the whole picture resized to exactly 3840 x 2160, filling the full boat
+    const c = document.createElement('canvas'); c.width = 3840; c.height = 2160; const x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high'; x.drawImage(im, 0, 0, 3840, 2160);
+    URL.revokeObjectURL(url);
+    let u = ''; for (const q of [0.85, 0.7, 0.55, 0.4, 0.3, 0.2]) { u = c.toDataURL('image/jpeg', q); if (u.length <= 900000) break; }
+    CB.skin = u; cbPreview();
+  };
+  im.onerror = () => { URL.revokeObjectURL(url); alert('Could not read that picture. · មិនអាចអានរូបភាពបាន'); };
+  im.src = url;
+};
+function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new one
+  CB.edit = edit;
+  const s = edit >= 0 ? GARAGE[edit] : null;
+  CB.skin = s ? s.skin : ''; $('cbNum').value = s ? s.num : ''; $('cbName').value = s ? s.kh : '';
+  $('cbShirt').value = hex6(s && s.shirt != null ? s.shirt : 0xf7c71c); $('cbOar').value = hex6(s && s.oar != null ? s.oar : 0xf3f0e6); $('cbPole').value = hex6(s && s.pole != null ? s.pole : 0xe9c477);
+  $('cbHull').value = s ? hex6(s.hull) : '#c8102e'; $('cbCrew').value = s ? hex6(s.shirts[0]) : '#2f78e0';
+  $('cbTitle').textContent = s ? 'កែទូក · Edit boat' : 'ទូកផ្ទាល់ខ្លួន · Custom boat';
+  $('btnCbSave').querySelector('i').textContent = s ? 'SAVE CHANGES' : 'SAVE';
+  cbPreview(); $('customBoat').classList.remove('hidden'); $('cbName').focus();
+}
+$('btnCustom').onclick = () => { if (GARAGE.length < MAXB) openCB(-1); };
+$('btnEditBoat').onclick = () => { const i = GARAGE.indexOf(curPick()); if (i >= 0) openCB(i); };
+$('cbHull').oninput = $('cbCrew').oninput = $('cbShirt').oninput = $('cbOar').oninput = $('cbPole').oninput = cbPreview;
+$('cbName').addEventListener('keydown', e => e.stopPropagation());
+$('btnCbCancel').onclick = () => $('customBoat').classList.add('hidden');
+$('btnCbSave').onclick = () => {
+  const ed = CB.edit; if (ed < 0 && GARAGE.length >= MAXB) return;
+  const hull = parseInt($('cbHull').value.slice(1), 16), sh = parseInt($('cbCrew').value.slice(1), 16), nm = clean($('cbName').value) || (ed >= 0 ? GARAGE[ed].kh : 'Custom ' + (GARAGE.length + 1));
+  const s = mk({ kh: nm, en: nm, hull, dark: shade(hull, 0.55), sh, c: 1, y: hull % 5, n: $('cbNum').value, img: CB.skin, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
+  if (GARAGE.some((g, gi) => gi !== ed && keyOf(g) === keyOf(s))) { alert('You already have this boat. · មានទូកនេះរួចហើយ'); return; }
+  if (ed >= 0) { const old = GARAGE[ed]; GARAGE[ed] = s; if (PICK.me === old) PICK.me = s; if (PICK.p2 === old) PICK.p2 = s; } else GARAGE.push(s);
+  saveGarage();
+  try { if (localStorage.getItem('omtouk-garage') !== JSON.stringify(GARAGE.map(ser))) alert('Browser storage is full: this boat will not be remembered next visit.'); } catch (e) { }
+  $('customBoat').classList.add('hidden'); chooseBoat(s);
+};
+function setModeUI(m) { G.mode = m; $('segMode').querySelectorAll('button').forEach(x => x.classList.toggle('on', +x.dataset.mode === m)); updateCtrlHint(); }
+function showScreen() {
+  if (G.state !== 'menu') return;
+  const lob = G.mode === 3;
+  $('lobby').classList.toggle('hidden', !lob); $('menu').classList.toggle('hidden', lob);
+  try {
+    if (lob && location.hash !== '#lobby') history.replaceState(null, '', '#lobby');
+    if (!lob && location.hash === '#lobby') history.replaceState(null, '', location.pathname + location.search);
+  } catch (e) { }
+  refreshMenu(); renderPick(); applyModels();
+}
+window.addEventListener('hashchange', () => {   // browser Back / Forward between menu and lobby
+  if (G.state !== 'menu') return;
+  const lob = location.hash === '#lobby';
+  if (lob && G.mode !== 3) setModeUI(3); else if (!lob && G.mode === 3) { netClose(); setModeUI(1); }
+  showScreen();
+});
+bindSeg('segDiffL', 'diff', v => { G.diffKey = v; });
+$('btnStartL').onclick = () => hostStart();
+$('btnBackL').onclick = () => { netClose(); setModeUI(1); showScreen(); };
+if (location.hash === '#lobby') setModeUI(3);
+
+/* ------------------------------------------------------------------ */
 /*  Online rooms (peer-to-peer via WebRTC / PeerJS)                   */
 /*  Host = Red boat, guest = Blue boat. Each side simulates its own   */
 /*  boat and streams its state; the notes are seeded so both match.   */
@@ -1815,18 +2059,17 @@ const newCode = () => Array.from({ length: 5 }, () => CODE_CH[Math.floor(Math.ra
 function netStatus(txt, cls) { const e = $('olStatus'); e.textContent = txt; e.className = 'olstatus ' + (cls || ''); }
 function refreshMenu() {
   const on = G.mode === 3, inRoom = !!NET.role;
-  $('onlineBox').classList.toggle('hidden', !on);
   $('olStart').classList.toggle('hidden', inRoom);
   $('olRoom').classList.toggle('hidden', !inRoom);
   $('roomCode').textContent = NET.code || '—';
-  $('grpDiff').classList.toggle('hidden', on && NET.role !== 'host');
-  $('btnStart').classList.toggle('hidden', on && !(NET.role === 'host' && NET.ready));
+  $('lobbyDiff').classList.toggle('hidden', !(on && NET.role === 'host'));
+  $('btnStartL').classList.toggle('hidden', !(on && NET.role === 'host' && NET.ready));
   $('btnAgain').querySelector('i').textContent = 'Race again'; $('btnAgain').classList.remove('hidden');
   if (!on || !inRoom) netStatus('');
 }
 function netClose() {
   const c = NET.conn, p = NET.peer;
-  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = '';   // NET.rx is kept so the other boat keeps gliding while a link is rebuilt
+  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = ''; PICK.peer = null;   // NET.rx is kept so the other boat keeps gliding while a link is rebuilt
   try { c && c.close(); } catch (e) { }
   try { p && p.destroy(); } catch (e) { }
 }
@@ -1835,7 +2078,7 @@ function netAttach(c) {
   NET.conn = c;
   const opened = () => {
     if (NET.conn !== c) return;
-    NET.ready = true; netSend({ t: 'hi' }); refreshMenu();
+    NET.ready = true; netSend({ t: 'hi' }); netSend({ t: 'boat', s: ser(PICK.me) }); refreshMenu(); renderPick();
     netStatus(NET.role === 'host' ? 'Friend joined! Press START RACE.' : 'Connected! Waiting for the host to start…', 'ok');
     NET.waiting = false; clearTimeout(NET.waitTimer);
     if (NET.resumeSnap) { const r = NET.resumeSnap; NET.resumeSnap = null; restoreRace(r); }
@@ -1914,6 +2157,11 @@ function netOnData(m) {
   }
   else if (m.t === 'rematch-ok' && NET.role === 'host' && G.state === 'results') hostStart();
   else if (m.t === 'rematch-no') { NET.rmPending = false; $('btnAgain').querySelector('i').textContent = 'Opponent declined'; }
+  else if (m.t === 'boat' && m.s && typeof m.s === 'object') {
+    PICK.peer = mk(m.s);
+    if (G.state === 'menu' && NET.role === 'guest' && keyOf(PICK.peer) === keyOf(PICK.me)) { const f = GARAGE.find(s => keyOf(s) !== keyOf(PICK.peer)); if (f) { PICK.me = f; saveBoat(); netSend({ t: 'boat', s: ser(f) }); } }   // same boat chosen: host keeps it
+    applyModels(); renderPick();
+  }
   else if (m.t === 's') NET.rx = Object.assign(m, { at: G.clock });
 }
 function netState(b) { return { x: b.x, v: b.v, sy: b.sync, cb: b.combo, mc: b.maxCombo, bt: b.boostT, sc: b.score, p: b.stats.p, g: b.stats.g, m: b.stats.m, f: b.finished ? 1 : 0, ft: b.finishT }; }
@@ -1972,7 +2220,7 @@ function checkInterrupted() {
   $('segMode').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.mode === '3'));
   updateCtrlHint(); setupRace(); NET.role = null;
   G.state = 'countdown'; G.paused = true; camSnap = true;
-  $('menu').classList.add('hidden'); $('hud').classList.remove('hidden'); $('btnPause').style.display = 'none';
+  $('menu').classList.add('hidden'); $('lobby').classList.add('hidden'); $('hud').classList.remove('hidden'); $('btnPause').style.display = 'none';
   $('interrupt').classList.remove('hidden');
   let autoT = null, left = 5; const rl = $('btnIntResume').querySelector('i');
   const stopAuto = () => { clearInterval(autoT); rl.textContent = 'Resume'; };
