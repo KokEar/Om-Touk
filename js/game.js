@@ -793,7 +793,12 @@ function makeApsara(styleIdx) {
   for (const o of [thR, shR, footR, ankR]) o.visible = false;
   // torso
   const torso = new THREE.Group(); root.add(torso);
-  mesh(GEO.box, gold2, torso, 0, 0.3, 0, 0.24, 0.5, 0.34);
+  // rounded, feminine torso: ribcage ellipsoid, tapered waist, soft hips (no boxy slab)
+  mesh(GEO.sph, gold2, torso, 0, 0.4, 0, 0.125, 0.17, 0.17);
+  const waistG = new THREE.CylinderGeometry(1, 0.92, 1, 16);
+  mesh(waistG, gold2, torso, 0, 0.2, 0, 0.12, 0.3, 0.165);
+  mesh(GEO.sph, gold2, torso, 0, 0.07, 0, 0.13, 0.1, 0.18);
+  mesh(GEO.sph, gold2, torso, 0.0, 0.5, 0, 0.09, 0.09, 0.17);
   mesh(GEO.sph, GOLD, torso, 0.09, 0.4, 0, 0.1, 0.16, 0.2);
   mesh(GEO.cyl, GOLD, torso, 0, 0.6, 0, 0.1, 0.08, 0.1);
   for (const z of [-1, 1]) mesh(GEO.sph, gold2, torso, 0, 0.54, z * 0.19, 0.075, 0.075, 0.075);
