@@ -1227,29 +1227,15 @@ function makeApsara(styleIdx) {
     // arm choreography differs per style
     const m = 0.5 + 0.5 * sh, L = lift * 0.25;
     // every style keeps each hand in a fixed side plane (constant z): the hands only travel forwards <-> backwards (x), with a little rise and fall
-    if (st.mode === 0) {          // classic: hands trade forwards / backwards in opposition
-      T.hR.set(0.2 + 0.25 * s1, 1.74 + 0.07 * c1 + L, 0.32);
-      T.hL.set(0.2 - 0.25 * s1, 1.74 - 0.07 * c1 + L, -0.32);
-    } else if (st.mode === 1) {   // lotus: both hands rise as they reach forwards, sink as they draw back
-      const o = 0.5 + 0.5 * s1;
-      T.hR.set(0.05 + 0.4 * o, 1.62 + 0.14 * o + L, 0.3);
-      T.hL.set(0.05 + 0.4 * o, 1.62 + 0.14 * o + L, -0.3);
-    } else if (st.mode === 2) {   // wings: arms held wide, sweeping forwards / backwards in a gentle ripple
-      T.hR.set(0.12 + 0.24 * s1, 1.5 + 0.06 * c1 + L, 0.55);
-      T.hL.set(0.12 + 0.24 * Math.sin(ph + 0.7), 1.5 + 0.06 * Math.cos(ph + 0.7) + L, -0.55);
-    } else if (st.mode === 3) {   // circling hands: loops in the vertical forward/back plane, never sideways
-      T.hR.set(0.2 + 0.2 * c1, 1.7 + 0.12 * s1 + L, 0.3);
-      T.hL.set(0.22 + 0.2 * Math.cos(ph + 2), 1.55 + 0.1 * Math.sin(ph + 2), -0.3);
-    } else {                      // greeting: palms together in front, drawing forwards and back
-      const o = 0.5 + 0.5 * s1;
-      T.hR.set(0.12 + 0.34 * o, 1.5 + 0.12 * o + L, 0.08); T.hL.set(0.12 + 0.34 * o, 1.5 + 0.12 * o + L, -0.08);
-    }
+    // every style: hands swing in opposition: one forwards while the other goes back
+    T.hR.set(0.2 + 0.32 * s1, 1.5 + 0.1 * c1 + L, 0.4);
+    T.hL.set(0.2 - 0.32 * s1, 1.34 - 0.1 * c1 + L, -0.4);
     sm(F.hR, T.hR, 4, dt); sm(F.hR2, F.hR, 4, dt); sm(F.hR3, F.hR2, 4, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 4, dt); sm(F.hL2, F.hL, 4, dt); sm(F.hL3, F.hL2, 4, dt); T.hL.copy(F.hL3);
     curPh = ph; wrist.f += ((0.4 + 0.2 * Math.sin(ph + 0.6)) - wrist.f) * (1 - Math.exp(-6 * dt));
     T.shS.set(0, 0.54, 0.19).applyMatrix4(torso.matrix);
     doArm(armR, T.shS.clone(), T.hR.clone(), V(-0.2, -0.7, 1), 1);
     T.shS.set(0, 0.54, -0.19).applyMatrix4(torso.matrix);
-    doArm(armL, T.shS.clone(), T.hL.clone(), V(-0.2, -0.7, -1), -1);
+    doArm(armL, T.shS.clone(), T.hL.clone(), V(-0.5, -0.8, -1), -1);
   }
   update(0, 0, 10);
   return { root, update, speed: st.speed };
@@ -1312,7 +1298,9 @@ function makeBoat(si) {
   {
     const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 1.27, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
     mesh(GEO.sph, GOLD, body, HL, 1.02, 0, 0.14, 0.14, 0.14);
-    mesh(GEO.cyl, M(0xe9c477), body, -HL + 0.6, 2.1, 0, 0.035, 1.8, 0.035);                                   // flag pole
+    // flag pole + flag hang off a pivot at the pole's foot, raked back 50 degrees
+    const flagRig = new THREE.Group(); flagRig.position.set(-HL + 0.6, 1.2, 0); flagRig.rotation.z = 50 * PI / 180; body.add(flagRig);
+    mesh(GEO.cyl, M(0xe9c477), flagRig, 0, 0.9, 0, 0.035, 1.8, 0.035);                                   // flag pole
     if (s.num) {   // boat number on the stern flag, readable from both sides
       const ft = canvasTex(160, 100, (c, w, h) => {
         c.fillStyle = '#' + s.shirts[0].toString(16).padStart(6, '0'); c.fillRect(0, 0, w, h);
@@ -1323,12 +1311,12 @@ function makeBoat(si) {
       for (const side of [0, 1]) {
         const fg = new THREE.PlaneGeometry(1.2, 0.75, 10, 1); anim.flags.push({ g: fg, w: 1.2, flip: side });
         const fl = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: ft }));
-        fl.position.set(-HL, 2.75, side ? -0.01 : 0.01); if (side) fl.rotation.y = PI; body.add(fl);
+        fl.position.set(-0.6, 1.55, side ? -0.01 : 0.01); if (side) fl.rotation.y = PI; flagRig.add(fl);
       }
     } else {
       const fgeo = new THREE.PlaneGeometry(0.95, 0.55, 10, 1); anim.flags.push({ g: fgeo, w: 0.95, flip: 0 });
       const flag = new THREE.Mesh(fgeo, new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
-      flag.position.set(-HL + 0.1, 2.75, 0); body.add(flag);
+      flag.position.set(-0.5, 1.55, 0); flagRig.add(flag);
     }
     const t = mesh(GEO.cone, GOLD, body, -HL - 0.05, 1.72, 0, 0.17, 0.7, 0.17); t.rotation.z = 0.5;
     mesh(GEO.sph, GOLD, body, -HL, 1.47, 0, 0.14, 0.14, 0.14);
