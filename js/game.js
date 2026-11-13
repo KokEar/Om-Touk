@@ -970,7 +970,7 @@ function makeBoat(si) {
       const x = -HL + 2 * HL * i / N, hu = Math.abs(x / HL);
       const hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
       const top = 0.82 + 1.2 * Math.pow(hu, 4.5), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
-      const sn = clamp((top - YD) / hd, 0, 1), w = hw * Math.sqrt(1 - sn * sn) * 0.995;
+      const sn = clamp((top - YD) / hd, 0, 1), w = sn > 0.8 ? 0 : hw * Math.sqrt(1 - sn * sn) * 0.94;
       pos.push(x, YD, -w, x, YD, w);
     }
     for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
@@ -1065,8 +1065,10 @@ function makeBoat(si) {
   const capT = null, capArms = [];
 
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
-  const SX = -8.5, SY = 0.55;
+  const SX = -8.5, SY = 1.0;   // stands on a wooden floor inside the stern, feet on the wood, hull around his legs
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
+  box(body, 0.7, 0.06, 0.74, SX, SY - 0.03, 0, wood);   // wooden floor he stands on
+  for (const z of [-1, 1]) mesh(GEO.sph, M(0x1a1a1a), steer, 0.06, 0.03, z * 0.1, 0.14, 0.04, 0.075);   // feet
   const stMat = shirtMats[0];   // the steersman wears the same crew shirt colour as the rowers
   const stTr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12).scale(0.9, 1, 1.15), M(0x2b2b45)); stTr.position.set(0, 0.42, 0); steer.add(stTr);   // sarong / trousers
   const stTor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.7, 14, 3).scale(0.85, 1, 1.18), stMat); stTor.position.set(0, 1.03, 0); steer.add(stTor);   // rounded torso
@@ -1100,8 +1102,8 @@ function makeBoat(si) {
     const sweep = Math.sin(t);
     // oar is held outboard of the hull so it never passes through the gunwale
     sdir.set(-0.45 + 0.15 * sweep, -0.8, 0.5).normalize();   // same slope and outboard lean as the crew paddles
-    const G = sV[0].set(SX + 0.2, 1.4, 0.5);
-    const tip = sV[1].copy(G).addScaledVector(sdir, 1.8), hnd = sV[2].copy(G).addScaledVector(sdir, -0.6);
+    const G = sV[0].set(SX + 0.2, SY + 0.85, 0.5);
+    const tip = sV[1].copy(G).addScaledVector(sdir, 2.4), hnd = sV[2].copy(G).addScaledVector(sdir, -0.6);
     aimV(oarShaft, hnd, tip);
     oarBlade.position.copy(tip).addScaledVector(sdir, -0.2); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
     steer.rotation.y = 0.05 * sweep;
