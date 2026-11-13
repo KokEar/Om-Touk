@@ -933,11 +933,12 @@ function makeArmGeo(shirtHex, skinHex) {
   const key = shirtHex + '_' + skinHex; if (_armCache[key]) return _armCache[key];
   const parts = [];
   const add = (g, hex, x, y, z, sx, sy, sz) => { g = g.toNonIndexed(); g.scale(sx, sy, sz); g.translate(x, y, z); parts.push([g, new THREE.Color(hex)]); };
-  add(new THREE.CylinderGeometry(0.085, 0.08, 1, 8), shirtHex, 0, -0.27, 0, 1, 0.46, 1);     // sleeve over the upper arm
-  add(new THREE.CylinderGeometry(0.075, 0.062, 1, 8), skinHex, 0, -0.03, 0, 1, 0.1, 1);       // bare upper-arm bit under sleeve
-  add(new THREE.CylinderGeometry(0.06, 0.042, 1, 8), skinHex, 0, 0.24, 0, 1, 0.5, 1);         // forearm, tapering to the wrist
-  add(new THREE.SphereGeometry(0.075, 8, 6), skinHex, 0, -0.5, 0, 1, 0.7, 1);                 // shoulder / elbow roundness
-  add(new THREE.SphereGeometry(0.058, 8, 6), skinHex, 0, 0.5, 0, 1, 1.5, 0.8);                // hand
+  add(new THREE.CylinderGeometry(0.088, 0.082, 1, 20, 2), shirtHex, 0, -0.27, 0, 1, 0.46, 1);   // sleeve over the upper arm
+  add(new THREE.CylinderGeometry(0.082, 0.07, 1, 20), skinHex, 0, -0.03, 0, 1, 0.1, 1);          // bare upper-arm bit under sleeve
+  add(new THREE.SphereGeometry(0.07, 20, 14), skinHex, 0, 0.0, 0, 1, 1, 1);                        // smooth elbow joint
+  add(new THREE.CylinderGeometry(0.068, 0.04, 1, 20, 2), skinHex, 0, 0.25, 0, 1, 0.5, 1);         // forearm, tapering to the wrist
+  add(new THREE.SphereGeometry(0.088, 20, 14), shirtHex, 0, -0.5, 0, 1, 0.8, 1);                  // rounded shoulder cap, same colour as sleeve
+  add(new THREE.SphereGeometry(0.058, 16, 12), skinHex, 0, 0.5, 0, 1, 1.5, 0.8);                  // hand
   let n = 0; for (const [g] of parts) n += g.attributes.position.count;
   const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3); let o = 0;
   for (const [g, c] of parts) {
@@ -1048,7 +1049,6 @@ function makeBoat(si) {
       }
       const hr = new THREE.Mesh(hairG, hairM); hr.position.set(-0.02, 1.07, 0); hr.scale.set(1.0, 1.0, 1.0); R.add(hr);
       const band = new THREE.Mesh(bandG, teamM); band.position.set(0.02, 1.12, 0); band.scale.set(1.05, 1.05, 1.05); band.rotation.x = PI / 2; R.add(band);   // team headband
-      for (const z of [-1, 1]) { const sh = new THREE.Mesh(shoulderG, shirt); sh.position.set(0, 0.82, z * 0.3); sh.scale.set(1.1, 1.0, 1.0); R.add(sh); }
       const armGeo = makeArmGeo(YEL, skinM.color.getHex());
       const armA = new THREE.Mesh(armGeo, ARM_MAT), armB = new THREE.Mesh(armGeo, ARM_MAT);
       const shaft = new THREE.Mesh(shaftG, shaftM); shaft.scale.y = L_SHAFT;
@@ -1080,28 +1080,36 @@ function makeBoat(si) {
   const stBand = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.025, 6, 18), GOLD); stBand.position.set(0, 1.64, 0); stBand.rotation.x = PI / 2; steer.add(stBand);   // headband at the hairline
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x111111), steer, 0.2, 1.57, z * 0.075, 0.03, 0.03, 0.03);   // eyes look toward the bow
   mesh(GEO.sph, skins[2], steer, 0.22, 1.5, 0, 0.04, 0.04, 0.04);                                         // nose
-  for (const z of [-1, 1]) mesh(GEO.sph, stMat, steer, 0, 1.3, z * 0.25, 0.12, 0.12, 0.12);
-  const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1, 8), M(s.pole != null ? s.pole : 0xe9c477)); body.add(oarShaft);
-  const oarBlade = mesh(GEO.box, M(s.oar != null ? s.oar : s.hull), body, 0, 0, 0, 0.07, 0.9, 0.34);
-  const stUpG = new THREE.CylinderGeometry(0.085, 0.07, 1, 8), stForeG = new THREE.CylinderGeometry(0.06, 0.042, 1, 8);
+  const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 6), M(s.pole != null ? s.pole : 0xe9c477)); body.add(oarShaft);
+  const oarBlade = mesh(GEO.box, M(s.oar != null ? s.oar : 0xf3f0e6), body, 0, 0, 0, 0.05, 0.6, 0.3);   // same blade colour and size as the crew paddles
+  const stUpG = new THREE.CylinderGeometry(0.092, 0.074, 1, 20, 2), stForeG = new THREE.CylinderGeometry(0.06, 0.04, 1, 20, 2);
+  const stJoint = new THREE.SphereGeometry(1, 18, 12);
   const stArms = [0, 1].map(() => [new THREE.Mesh(stUpG, stMat), new THREE.Mesh(stForeG, skins[2])]);   // sleeve + bare forearm
   stArms.forEach(p => p.forEach(m => body.add(m)));
-  const stHands = [0, 1].map(() => { const h = new THREE.Mesh(GEO.sph, skins[2]); h.scale.set(0.05, 0.08, 0.04); body.add(h); return h; });
+  const stShoulders = [0, 1].map(() => { const m = new THREE.Mesh(stJoint, stMat); m.scale.set(0.1, 0.1, 0.1); body.add(m); return m; });   // deltoid, same radius as the sleeve so the arm joins the torso smoothly
+  const stElbows = [0, 1].map(() => { const m = new THREE.Mesh(stJoint, skins[2]); m.scale.set(0.064, 0.064, 0.064); body.add(m); return m; });
+  const stPalms = [0, 1].map(() => { const g = new THREE.Group(); body.add(g);
+    const palm = new THREE.Mesh(stJoint, skins[2]); palm.scale.set(0.05, 0.075, 0.062); palm.position.y = 0.045; g.add(palm);          // palm / gripping fist
+    const fing = new THREE.Mesh(stJoint, skins[2]); fing.scale.set(0.058, 0.04, 0.07); fing.position.set(0.0, 0.1, 0.0); g.add(fing);   // curled fingers
+    const thumb = new THREE.Mesh(stJoint, skins[2]); thumb.scale.set(0.022, 0.045, 0.022); thumb.position.set(0.04, 0.06, 0.03); thumb.rotation.z = -0.5; g.add(thumb);
+    return g; });
+  const _hd = new THREE.Vector3();
+  const stHandAt = (g, el, wr) => { _hd.subVectors(wr, el).normalize(); g.position.copy(wr).addScaledVector(_hd, -0.05); g.quaternion.setFromUnitVectors(UPV, _hd); };
   const sV = [0, 1, 2, 3, 4].map(() => new THREE.Vector3()), sdir = new THREE.Vector3();
   const steerUpdate = (t) => {
     const sweep = Math.sin(t);
     // oar is held outboard of the hull so it never passes through the gunwale
-    sdir.set(-0.7, -0.75, 0.12 + 0.22 * sweep).normalize();
-    const G = sV[0].set(SX - 0.1, 1.5, 0.84 + 0.1 * sweep);
-    const tip = sV[1].copy(G).addScaledVector(sdir, 2.2), hnd = sV[2].copy(G).addScaledVector(sdir, -0.35);
+    sdir.set(-0.45 + 0.15 * sweep, -0.8, 0.35).normalize();   // same slope and outboard lean as the crew paddles
+    const G = sV[0].set(SX - 0.1, 1.5, 0.68);
+    const tip = sV[1].copy(G).addScaledVector(sdir, 1.8), hnd = sV[2].copy(G).addScaledVector(sdir, -0.15);
     aimV(oarShaft, hnd, tip);
-    oarBlade.position.copy(tip).addScaledVector(sdir, -0.3); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
+    oarBlade.position.copy(tip).addScaledVector(sdir, -0.2); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
     steer.rotation.y = 0.05 * sweep;
     const shR = new THREE.Vector3(SX, SY + 1.3, 0.25), shL = new THREE.Vector3(SX, SY + 1.3, -0.25), el = new THREE.Vector3(), wr = new THREE.Vector3();
-    ik2(shR, G, 0.32, 0.32, new THREE.Vector3(-0.2, -0.8, 0.6), el, wr);           // right hand steers the oar
-    aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr); stHands[0].position.copy(wr);
+    ik2(shR, G, 0.32, 0.32, new THREE.Vector3(-0.4, -0.6, 0.5), el, wr);           // right hand steers the oar; arm reaches out and forward with a gentle, natural elbow bend
+    aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr); stShoulders[0].position.copy(shR); stElbows[0].position.copy(el); stHandAt(stPalms[0], el, wr);
     ik2(shL, sV[3].set(SX + 0.18, SY + 0.85, -0.3), 0.32, 0.32, new THREE.Vector3(-0.1, -0.5, -1), el, wr);   // left hand rests on the hip
-    aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr); stHands[1].position.copy(wr);
+    aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr); stShoulders[1].position.copy(shL); stElbows[1].position.copy(el); stHandAt(stPalms[1], el, wr);
   };
   steerUpdate(0);
   const steerArms = [];
@@ -1642,7 +1650,7 @@ function updateVisuals(dt, wall) {
     const active = (G.state === 'race' || G.state === 'finishing') && !b.finished || (G.state === 'results' && !b.finished);
     if (G.state === 'menu') { mode = 1; }
     else if (active) mode = 1;
-    const chaos = Math.pow(1 - b.sync, 1.3) * 0.9;
+    const chaos = 0;   // crew always paddles in unison, even when the player misses or stops tapping
     const base = G.state === 'menu' ? tw / 1.15 : T / I;
     for (const r of b.rowers) {
       u = frac(base + 0.25 + r.off * chaos + (G.state === 'menu' ? r.off * 0.15 : 0));
