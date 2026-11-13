@@ -538,6 +538,100 @@ function makePalace() {
   return g;
 }
 
+/* Wat Ounalom (Phnom Penh, seat of Cambodian Buddhism): walled compound with a gated entrance,
+   a cream-and-gold vihara under stacked orange gable roofs with naga/chofa horns, two tall white chedis,
+   monks' kuti and a bell tower. Front faces +z (river), ground at y = 0, ~84 units wide */
+function whiteChedi(g, x, z, s) {
+  const white = M(0xf6f1e3), shade = M(0xe1d9c2);
+  box(g, 11 * s, 1.4 * s, 11 * s, x, 0.7 * s, z, shade);
+  box(g, 9 * s, 1.4 * s, 9 * s, x, 2.1 * s, z, white);
+  box(g, 7 * s, 1.2 * s, 7 * s, x, 3.4 * s, z, shade);
+  // terraced square plinths with corner stupas
+  for (const a of [-1, 1]) for (const b of [-1, 1]) stupaFinial(g, x + a * 4.2 * s, 2.8 * s, z + b * 4.2 * s, 0.9 * s);
+  // bell body: lathe profile, white lime plaster, gold ring mouldings, tall gilded spire
+  const pts = [[0, 0], [2.9, 0], [3.0, 0.7], [2.5, 1.5], [3.1, 2.4], [3.4, 4.2], [3.1, 6.6], [2.4, 8.8], [2.0, 10.2], [2.3, 10.9], [1.7, 11.6], [1.4, 13.5], [1.1, 16.5], [0.8, 19.5], [0.55, 22], [0.3, 24.5], [0, 28]]
+    .map(p => new THREE.Vector2(p[0] * s, p[1] * s));
+  mesh(new THREE.LatheGeometry(pts, 20), white, g, x, 4.0 * s, z);
+  for (const [y, r] of [[4.9, 3.15], [7.2, 3.25], [11.0, 2.35], [12.6, 1.55]]) mesh(new THREE.CylinderGeometry(r * s, r * s, 0.28 * s, 20), GOLD, g, x, (4.0 + y) * s * 0.995 + 0.0, z);
+  // niches with seated Buddha hint on the four faces of the lower body
+  for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) box(g, (dx ? 0.3 : 1.6) * s, 2.2 * s, (dz ? 0.3 : 1.6) * s, x + dx * 3.3 * s, 6.2 * s, z + dz * 3.3 * s, M(0xb5791d));
+  mesh(GEO.cone, GOLD, g, x, (4.0 + 28 + 5) * s, z, 0.2 * s, 10 * s, 0.2 * s);
+  mesh(GEO.sph, GOLD, g, x, (4.0 + 24.6) * s, z, 0.45 * s, 0.45 * s, 0.45 * s);
+}
+function makeWatOunalom() {
+  const g = new THREE.Group();
+  const white = M(0xf6f1e3), cream = M(0xf1e4bd), shade = M(0xd9d0b4), yellow = M(0xf0b429), maroon = M(0x7d2318), orange = 0xdb6a22, tileG = M(0x1d5a4a);
+  // courtyard + front boundary wall (whitewashed, yellow band, red-tile coping) with a central gate
+  box(g, 88, 0.6, 50, 0, 0.3, 0, M(0xe3d8b8));
+  box(g, 88, 3.2, 1.0, 0, 2.2, 25, white); box(g, 88, 0.6, 1.2, 0, 1.0, 25, yellow); box(g, 88, 0.5, 1.4, 0, 3.95, 25, M(0xb8442a));
+  for (const sx of [-1, 1]) { box(g, 1.0, 3.2, 48, sx * 44, 2.2, 0, white); box(g, 1.4, 0.5, 48, sx * 44, 3.95, 0, M(0xb8442a)); }
+  box(g, 88, 3.2, 1.0, 0, 2.2, -25, white);
+  for (let x = -38; x <= 38; x += 6) { if (Math.abs(x) < 8) continue; box(g, 0.9, 3.0, 1.3, x, 2.2, 25, shade); }
+  for (const sx of [-1, 1]) for (const x of [14, 26, 38]) stupaFinial(g, sx * x, 4.2, 25, 0.7);
+  // gate: pillared portico with stepped gable roofs, gold spire, red doors
+  for (const sx of [-1, 1]) { box(g, 2.6, 8, 2.6, sx * 6, 4.6, 25, white); box(g, 3.0, 0.5, 3.0, sx * 6, 8.8, 25, GOLD); stupaFinial(g, sx * 6, 9.0, 25, 0.8); }
+  box(g, 10, 1.2, 2.8, 0, 8.4, 25, shade);
+  gableRoof(g, 14, 5, 4.2, 0, 9.0, 25, orange, 0.86);
+  gableRoof(g, 9, 4, 3.2, 0, 13.2, 25, 0xe8851e, 0.86);
+  spire(g, 0, 16.2, 25, 1.1, 5, 0.8);
+  box(g, 7, 6.4, 0.5, 0, 3.6, 25.2, maroon);
+  for (const sx of [-1, 1]) box(g, 3.1, 5.4, 0.3, sx * 1.75, 3.7, 25.5, M(0xc9972b));
+  // central stone path
+  box(g, 5, 0.12, 24, 0, 0.7, 12, M(0xcfc5a6));
+
+  // ---- the vihara ----
+  const vz = -2;
+  box(g, 40, 2.2, 26, 0, 1.7, vz, shade);              // terraced base
+  box(g, 41.5, 0.5, 27.5, 0, 2.95, vz, white);
+  box(g, 12, 0.7, 3, 0, 1.0, vz + 14.6, shade); box(g, 10, 0.7, 2, 0, 1.6, vz + 13.8, shade);   // front steps
+  // naga balustrade on the steps
+  for (const sx of [-1, 1]) { box(g, 0.8, 1.2, 4, sx * 6.5, 1.8, vz + 15, white); mesh(GEO.cone, GOLD, g, sx * 6.5, 2.7, vz + 16.8, 0.45, 1.6, 0.45); }
+  // cream walls with maroon columns and a pillared front veranda
+  box(g, 32, 9, 20, 0, 7.9, vz - 1, cream);
+  for (let x = -17; x <= 17.1; x += 4.25) { cyl(g, 0.5, 9.4, x, 7.7, vz + 12, maroon); box(g, 1.4, 0.4, 1.4, x, 12.6, vz + 12, GOLD); box(g, 1.3, 0.5, 1.3, x, 3.4, vz + 12, white); }
+  box(g, 36, 0.9, 2.2, 0, 12.8, vz + 12, M(0xb5791d)); box(g, 36, 0.4, 2.4, 0, 13.4, vz + 12, GOLD);
+  // doors and windows on the cream wall behind the veranda
+  for (const x of [-4.2, 0, 4.2]) { box(g, 3.2, 6.6, 0.4, x, 6.6, vz + 9.1, maroon); box(g, 2.5, 5.6, 0.45, x, 6.6, vz + 9.12, M(0xc9972b)); box(g, 1.9, 4.6, 0.5, x, 6.6, vz + 9.14, M(0x8a2c1c)); }
+  for (const x of [-14, -10, 10, 14]) { box(g, 2.6, 3.6, 0.4, x, 8.0, vz + 9.1, M(0x5a2a18)); box(g, 2.0, 3.0, 0.45, x, 8.0, vz + 9.15, M(0x1f1a14)); box(g, 3.2, 0.4, 0.6, x, 10.0, vz + 9.1, GOLD); }
+  // roofs: broad lower eave, then stacked gable tiers (orange tile, gold fascia, green trim)
+  box(g, 36, 0.6, 24, 0, 13.4, vz - 0.5, tileG);
+  mesh(hipGeo(40, 26, 3.2), M(orange, { side: THREE.DoubleSide }), g, 0, 13.7, vz - 0.5);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) chofa(g, sx * 20, 13.9, vz - 0.5 + sz * 13, sx, sz, 1.5);
+  gableRoof(g, 30, 22, 8.5, 0, 14.0, vz, orange, 0.86);
+  gableRoof(g, 22, 18, 7.4, 0, 21.0, vz, 0xe8851e, 0.86);
+  gableRoof(g, 15, 13, 6.2, 0, 27.4, vz, 0xf09a22, 0.86);
+  box(g, 1.2, 0.8, 14, 0, 33.4, vz, GOLD);
+  for (const x of [-5, 5]) stupaFinial(g, x, 33.6, vz, 0.7);
+  spire(g, 0, 33.9, vz, 1.3, 5, 0.9);
+  // front gable: gold pediment glimpsed over the portico
+  box(g, 22, 4, 5, 0, 15.6, vz + 12, cream);
+  gableRoof(g, 18, 6, 6.0, 0, 17.5, vz + 12.5, 0xdb6a22, 0.88);
+
+  // ---- two tall white chedis flanking the vihara ----
+  whiteChedi(g, -33, -4, 1.45);
+  whiteChedi(g, 33, -4, 1.2);
+  // smaller corner stupas
+  for (const [x, z] of [[-18, 15], [18, 15], [-38, 15], [38, 15]]) { box(g, 3.2, 0.5, 3.2, x, 0.85, z, shade); stupaFinial(g, x, 1.1, z, 1.1); }
+
+  // ---- monks' kuti (long low yellow houses, red tile roofs) behind the vihara ----
+  for (const sx of [-1, 1]) {
+    box(g, 22, 0.8, 8, sx * 22, 1.0, -17, shade);
+    box(g, 20, 5.0, 6.4, sx * 22, 3.9, -17, yellow);
+    for (let i = -3; i <= 3; i++) { box(g, 1.2, 2.4, 0.3, sx * 22 + i * 2.7, 3.2, -13.7, M(0x6e3a1c)); box(g, 1.7, 0.3, 0.45, sx * 22 + i * 2.7, 4.6, -13.7, white); }
+    mesh(hipGeo(23, 8.4, 2.8), M(0xb03a24, { side: THREE.DoubleSide }), g, sx * 22, 6.4, -17);
+    box(g, 23, 0.4, 0.5, sx * 22, 6.5, -13, GOLD);
+  }
+  // bell tower (right-rear): square white shaft, open pavilion, tiered gold roof
+  { const bx = 8, bz = -20;
+    box(g, 5.5, 0.8, 5.5, bx, 1.0, bz, shade); box(g, 4.2, 8, 4.2, bx, 5.4, bz, white);
+    box(g, 5.0, 0.5, 5.0, bx, 9.6, bz, GOLD);
+    for (const a of [-1, 1]) for (const b of [-1, 1]) cyl(g, 0.28, 3.4, bx + a * 1.9, 11.5, bz + b * 1.9, maroon);
+    mesh(GEO.cone4, M(orange), g, bx, 13.2, bz, 6.2, 3.0, 6.2);
+    mesh(GEO.cone4, M(0xe8851e), g, bx, 15.4, bz, 4.0, 2.4, 4.0);
+    spire(g, bx, 17.2, bz, 1.0, 4, 0.7); }
+  return g;
+}
+
 function makeStupa() {
   const g = new THREE.Group();
   box(g, 15, 1.6, 15, 0, 0.8, 0, M(0xe6dcc0));
@@ -650,7 +744,7 @@ function buildShore() {
   place(makeStupa(), -62, -100, 1.1, 8);
   place(makeStupa(), 130, -104, 1.0, 8);
   place(makePavilion(), 108, -66, 1.0, 7);
-  place(makePavilion(), 205, -68, 1.1, 7);
+  place(makeWatOunalom(), BANDS[0], -92, 1.1, 44);   // Wat Ounalom, straight behind the Band 1 gate
   place(makePavilion(), 372, -66, 1.0, 7);
   place(makeStupa(), 420, -102, 1.2, 8);
   place(makePavilion(), 478, -68, 1.0, 7);
