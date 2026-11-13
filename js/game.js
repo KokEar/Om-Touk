@@ -250,10 +250,10 @@ scaleTex.wrapS = scaleTex.wrapT = THREE.RepeatWrapping;
 
 // Painted hull like a real Cambodian racing boat: green sheer, red/orange ornament band with gold diamonds and green leaves.
 // Painted hull in the style of a real Cambodian racing boat: coloured body, gold chain border, black-outlined gold leaf flourishes, an eye near the bow and a wreath roundel amidships. Only the body colour changes per boat.
-function paintHull(c, W, HH, hull, dark) {
+function paintHull(c, W, HH, hull, dark, hull2) {
   const hx = n => '#' + n.toString(16).padStart(6, '0');
   const GOLD = '#f2c230', GOLD2 = '#c98e12', HI = '#ffe27a', INK = '#14100a';
-  const g = c.createLinearGradient(0, 0, 0, HH); g.addColorStop(0, hx(hull)); g.addColorStop(0.55, hx(hull)); g.addColorStop(1, hx(dark));
+  const g = c.createLinearGradient(0, 0, 0, HH); g.addColorStop(0, hx(hull)); if (hull2 != null) { g.addColorStop(0.2, hx(hull)); g.addColorStop(0.42, hx(hull2)); g.addColorStop(1, hx(hull2)); } else { g.addColorStop(0.55, hx(hull)); g.addColorStop(1, hx(dark)); }
   c.fillStyle = g; c.fillRect(0, 0, W, HH);
   // rim + chain border
   c.fillStyle = GOLD; c.fillRect(0, 0, W, HH * 0.035);
@@ -319,7 +319,7 @@ function hullTexture(s) {
   const W = 2048, H = 512, HH = H / 2;
   const tex = canvasTex(W, H, (c) => {
     // upper half: rim (top) → keel (bottom); then mirrored for the other side
-    paintHull(c, W, HH, s.hull, s.dark);   // photo-style painted hull in the boat's own colour
+    paintHull(c, W, HH, s.hull, s.dark, s.hull2);   // photo-style painted hull in the boat's own colour
     if (s.skin && skinReady(s.skin)) { c.drawImage(SKINS.get(s.skin), 0, 0, W, HH); c.fillStyle = '#f6c21c'; c.fillRect(0, 0, W, HH * 0.035); }   // uploaded picture replaces the painted skin
     c.save(); c.translate(0, H); c.scale(1, -1); c.drawImage(c.canvas, 0, 0, W, HH, 0, 0, W, HH); c.restore();
   });
@@ -430,20 +430,17 @@ function buildShore() {
   // landmarks
   const place = (obj, x, z, sc, hw) => { obj.position.set(x, 1.8, z); obj.scale.setScalar(sc || 1); scene.add(obj); footprints.push({ x, hw: hw * (sc || 1) + 4 }); };
   place(makePavilion(), -22, -66, 1.0, 7);
-  place(makePalace(), 48, -92, 1.15, 31);
   place(makeStupa(), -62, -100, 1.1, 8);
   place(makeStupa(), 130, -104, 1.0, 8);
   place(makePavilion(), 108, -66, 1.0, 7);
   place(makePavilion(), 205, -68, 1.1, 7);
-  place(makePalace(), 300, -98, 1.3, 31);
   place(makePavilion(), 372, -66, 1.0, 7);
   place(makeStupa(), 420, -102, 1.2, 8);
   place(makePavilion(), 478, -68, 1.0, 7);
-  place(makePalace(), 560, -94, 1.2, 31);
+  place(makePalace(), RACE_LEN, -94, 1.2, 31);   // the one Royal Palace, straight behind the finish line
   place(makeStupa(), 640, -100, 1.1, 8);
-  place(makePavilion(), 690, -67, 1.0, 7);
+  place(makePavilion(), 775, -67, 1.0, 7);   // moved aside so it doesn't block the palace
   place(makeStupa(), 770, -104, 1.0, 8);
-  place(makePalace(), 860, -96, 1.1, 31);
   place(makeStupa(), -140, -102, 1.0, 8);
   // tents along the promenade
   const tentCols = [0xff5a36, 0xffc22e, 0x2fa8e0, 0xe2336b, 0x3cc16a];
@@ -644,18 +641,23 @@ function buildCourse() {
         cyl(dr, 0.31, 0.03, 0, 0.54, 0, M(0xf3e2b8));
         // drummer (behind the drum, facing it)
         const pp = new THREE.Group(); pp.position.set(0.15, 0.13, 0); sb.add(pp);
-        box(pp, 0.3, 0.5, 0.36, 0, 0.45, 0, M(0xe0283f));
+        const shM = M(0xe0283f);
+        const tor = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.15, 0.52, 14, 2), shM); tor.scale.set(0.8, 1, 1.25); tor.position.set(0, 0.46, 0); pp.add(tor);   // rounded torso, broader at the shoulders
+        mesh(GEO.cyl, skinM, pp, 0, 0.74, 0, 0.05, 0.1, 0.05);   // neck
+        for (const z of [-1, 1]) mesh(GEO.sph, shM, pp, 0, 0.67, z * 0.23, 0.14, 0.14, 0.14);   // round shoulders
         mesh(GEO.sph, skinM, pp, 0, 0.88, 0, 0.16, 0.17, 0.15);   // round head
         mesh(GEO.sph, hairM, pp, -0.015, 0.93, 0, 0.17, 0.15, 0.16);   // hair cap
         for (const lz of [-0.1, 0.1]) {   // legs + feet (feet point toward the drum)
-          box(pp, 0.13, 0.24, 0.14, 0, 0.14, lz, M(0x2a2a35));
-          box(pp, 0.26, 0.07, 0.15, -0.06, 0.035, lz, M(0x1a1a1a));
+          mesh(GEO.cyl, M(0x2a2a35), pp, 0, 0.14, lz, 0.07, 0.26, 0.07);   // round leg
+          mesh(GEO.sph, M(0x1a1a1a), pp, -0.05, 0.04, lz, 0.13, 0.04, 0.075);   // rounded foot
         }
         const arms = [];
         for (const az of [-0.22, 0.22]) {   // arms[0] (z -0.22) is the drummer's RIGHT hand (he faces -x), arms[1] the left
           const arm = new THREE.Group(); arm.position.set(0, 0.62, az); pp.add(arm);
-          box(arm, 0.5, 0.15, 0.15, -0.25, 0, 0, skinM);     // arm reaching toward the drum
-          box(arm, 0.5, 0.07, 0.07, -0.72, 0.0, 0, stickM);  // stick
+          const ua = mesh(GEO.cyl, M(0xe0283f), arm, -0.12, 0, 0, 0.075, 0.26, 0.075); ua.rotation.z = PI / 2;   // sleeve
+          const fa = mesh(GEO.cyl, skinM, arm, -0.37, 0, 0, 0.055, 0.26, 0.055); fa.rotation.z = PI / 2;   // rounded forearm
+          mesh(GEO.sph, skinM, arm, -0.51, 0, 0, 0.065, 0.065, 0.065);   // hand
+          const st2 = mesh(GEO.cyl, stickM, arm, -0.74, 0, 0, 0.03, 0.5, 0.03); st2.rotation.z = PI / 2;  // stick
           mesh(GEO.sph, M(0xb3202a), arm, -0.98, 0, 0, 0.1, 0.1, 0.1);   // mallet head
           arm.rotation.z = az > 0 ? 1.3 : -0.95; arms.push(arm);
         }
@@ -962,7 +964,7 @@ function makeBoat(si) {
 
   // deck floor inside the hull, just above the waterline, so no water shows through the open hull
   {
-    const YD = 0.42, N = 60, pos = [], idx = [];
+    const YD = 0.55, N = 60, pos = [], idx = [];
     for (let i = 0; i <= N; i++) {
       const x = -HL + 2 * HL * i / N, hu = Math.abs(x / HL);
       const hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
@@ -976,6 +978,7 @@ function makeBoat(si) {
     body.add(new THREE.Mesh(dg, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide })));
   }
 
+  const anim = root.userData.anim = { flags: [], tassels: [] };   // stern flag + tassels flutter in updateVisuals
   // bow: gilded prow with a team flag; stern: upturned tail with red / black tassels (as on real racing boats)
   {
     const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 2.15, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
@@ -989,19 +992,23 @@ function makeBoat(si) {
         c.lineWidth = 8; c.strokeStyle = 'rgba(0,0,0,.55)'; c.strokeText(s.num, w / 2, h / 2 + 4); c.fillStyle = '#fff'; c.fillText(s.num, w / 2, h / 2 + 4);
       });
       for (const side of [0, 1]) {
-        const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.75), new THREE.MeshBasicMaterial({ map: ft }));
+        const fg = new THREE.PlaneGeometry(1.2, 0.75, 10, 1); anim.flags.push({ g: fg, w: 1.2, flip: side });
+        const fl = new THREE.Mesh(fg, new THREE.MeshBasicMaterial({ map: ft }));
         fl.position.set(-HL, 3.35, side ? -0.01 : 0.01); if (side) fl.rotation.y = PI; body.add(fl);
       }
     } else {
-      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.55), new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
+      const fgeo = new THREE.PlaneGeometry(0.95, 0.55, 10, 1); anim.flags.push({ g: fgeo, w: 0.95, flip: 0 });
+      const flag = new THREE.Mesh(fgeo, new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
       flag.position.set(-HL + 0.1, 3.35, 0); body.add(flag);
     }
     const t = mesh(GEO.cone, GOLD, body, -HL - 0.05, 2.15, 0, 0.17, 0.7, 0.17); t.rotation.z = 0.5;
     mesh(GEO.sph, GOLD, body, -HL, 1.9, 0, 0.14, 0.14, 0.14);
     for (const ex of [-HL - 0.12, HL + 0.12]) [[0xd0202a, -0.17, 0.75], [0x111111, 0, 0.85], [0xf0861c, 0.17, 0.7]].forEach(([c, z, l]) => {
       const tm = M(c);
-      mesh(GEO.cyl, tm, body, ex, 1.85 - l / 2, z, 0.06, l, 0.06);
-      mesh(GEO.sph, tm, body, ex, 1.85, z, 0.09, 0.09, 0.09);
+      const tg = new THREE.Group(); tg.position.set(ex, 1.85, z); body.add(tg);   // pivot at the top so the tassel can swing
+      mesh(GEO.cyl, tm, tg, 0, -l / 2, 0, 0.06, l, 0.06);
+      mesh(GEO.sph, tm, tg, 0, 0, 0, 0.09, 0.09, 0.09);
+      anim.tassels.push({ g: tg, ph: z * 9 + ex * 0.3, k: ex < 0 ? 1.2 : 0.8 });
     });
   }
   const head = new THREE.Group(); body.add(head);
@@ -1012,8 +1019,8 @@ function makeBoat(si) {
   const YEL = s.shirt != null ? s.shirt : 0xf7c71c, shirtMats = [M(YEL), M(YEL)], teamM = shirtMats[0];   // one crew colour: shirts, sleeves and headbands all use the boat's Shirt colour (yellow by default); the flag has its own colour
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
-  const torsoGeo = new THREE.CylinderGeometry(0.2, 0.145, 0.74, 14, 3).scale(0.85, 1, 1.18), neckG = new THREE.CylinderGeometry(0.055, 0.065, 0.16, 8), headG = new THREE.SphereGeometry(0.19, 10, 8);
-  const hairG = new THREE.SphereGeometry(0.2, 10, 6, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 7, 5);
+  const torsoGeo = new THREE.CylinderGeometry(0.25, 0.17, 0.74, 16, 3).scale(0.8, 1, 1.3), neckG = new THREE.CylinderGeometry(0.07, 0.08, 0.14, 8), headG = new THREE.SphereGeometry(0.21, 14, 10);
+  const hairG = new THREE.SphereGeometry(0.22, 14, 8, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 10, 8);
   const armG = new THREE.CylinderGeometry(0.07, 0.06, 1, 6), shaftG = new THREE.CylinderGeometry(0.035, 0.035, 1, 6), bladeG = new THREE.BoxGeometry(0.05, 0.6, 0.3);
   const bladeM = M(s.oar != null ? s.oar : 0xf3f0e6), shaftM = M(s.pole != null ? s.pole : 0xe9c477);   // two oar colours: shaft (pole) and tip (blade); defaults: wooden shaft, pale blade
   const L_SHAFT = 1.7;
@@ -1029,18 +1036,19 @@ function makeBoat(si) {
       const R = new THREE.Group(); R.position.set(sx, 0.27, sd * seatZ); body.add(R);
       const shirt = shirtMats[i % 2];
       const t = new THREE.Mesh(torsoGeo, shirt); t.position.y = 0.5; R.add(t);
-      const nk = new THREE.Mesh(neckG, skins[0]); nk.position.set(0.01, 0.92, 0); R.add(nk);
+      const hip = new THREE.Mesh(shoulderG, shirt); hip.position.set(0.02, 0.17, 0); hip.scale.set(1.3, 0.9, 2.0); R.add(hip);   // seated hips
+      const nk = new THREE.Mesh(neckG, skins[0]); nk.position.set(0.01, 0.9, 0); R.add(nk);
       const skinM = pick(skins);
-      const hd = new THREE.Mesh(headG, skinM); hd.position.set(0.03, 1.05, 0); hd.scale.set(0.95, 1.1, 0.88); R.add(hd);   // oval head
-      const jaw = new THREE.Mesh(headG, skinM); jaw.position.set(0.06, 0.97, 0); jaw.scale.set(0.62, 0.55, 0.6); R.add(jaw);  // chin
-      const nose = new THREE.Mesh(shoulderG, skinM); nose.position.set(0.2, 1.03, 0); nose.scale.set(0.5, 0.7, 0.45); R.add(nose);
+      const hd = new THREE.Mesh(headG, skinM); hd.position.set(0.03, 1.04, 0); hd.scale.set(0.95, 1.02, 0.95); R.add(hd);   // oval head
+      const jaw = new THREE.Mesh(headG, skinM); jaw.position.set(0.06, 0.95, 0); jaw.scale.set(0.62, 0.55, 0.6); R.add(jaw);  // chin
+      const nose = new THREE.Mesh(shoulderG, skinM); nose.position.set(0.22, 1.02, 0); nose.scale.set(0.5, 0.7, 0.45); R.add(nose);
       for (const z of [-1, 1]) {
-        const ear = new THREE.Mesh(shoulderG, skinM); ear.position.set(0.0, 1.04, z * 0.165); ear.scale.set(0.35, 0.6, 0.3); R.add(ear);
-        const eye = new THREE.Mesh(shoulderG, eyeM); eye.position.set(0.17, 1.08, z * 0.07); eye.scale.set(0.2, 0.22, 0.2); R.add(eye);
+        const ear = new THREE.Mesh(shoulderG, skinM); ear.position.set(0.0, 1.03, z * 0.2); ear.scale.set(0.35, 0.6, 0.3); R.add(ear);
+        const eye = new THREE.Mesh(shoulderG, eyeM); eye.position.set(0.19, 1.07, z * 0.08); eye.scale.set(0.2, 0.22, 0.2); R.add(eye);
       }
-      const hr = new THREE.Mesh(hairG, hairM); hr.position.set(-0.01, 1.09, 0); hr.scale.set(1.0, 1.05, 0.95); R.add(hr);
-      const band = new THREE.Mesh(bandG, teamM); band.position.set(0.02, 1.13, 0); band.rotation.x = PI / 2; R.add(band);   // team headband
-      for (const z of [-1, 1]) { const sh = new THREE.Mesh(shoulderG, shirt); sh.position.set(0, 0.83, z * 0.24); R.add(sh); }
+      const hr = new THREE.Mesh(hairG, hairM); hr.position.set(-0.02, 1.07, 0); hr.scale.set(1.0, 1.0, 1.0); R.add(hr);
+      const band = new THREE.Mesh(bandG, teamM); band.position.set(0.02, 1.12, 0); band.scale.set(1.05, 1.05, 1.05); band.rotation.x = PI / 2; R.add(band);   // team headband
+      for (const z of [-1, 1]) { const sh = new THREE.Mesh(shoulderG, shirt); sh.position.set(0, 0.82, z * 0.3); sh.scale.set(1.1, 1.0, 1.0); R.add(sh); }
       const armGeo = makeArmGeo(YEL, skinM.color.getHex());
       const armA = new THREE.Mesh(armGeo, ARM_MAT), armB = new THREE.Mesh(armGeo, ARM_MAT);
       const shaft = new THREE.Mesh(shaftG, shaftM); shaft.scale.y = L_SHAFT;
@@ -1132,7 +1140,7 @@ function poseRower(r, u, mode, T) {
   r.R.rotation.z = lean;
   const s = r.side, cl = Math.cos(lean), sl = Math.sin(lean);
   const shY = 0.27 + 0.84 * cl, shX = r.sx - 0.84 * sl;
-  const inner = r.sz - s * 0.24, outer = r.sz + s * 0.24;
+  const inner = r.sz - s * 0.28, outer = r.sz + s * 0.28;
   const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.33;
   let px = r.sx + tx, py = ty, pz = r.sz + s * out;
   // keep the tip within reach of the hands
@@ -1618,7 +1626,16 @@ function updateVisuals(dt, wall) {
     const h0 = waveH(b.x, b.z, tw), hf = waveH(b.x + HL * 0.8, b.z, tw), hb = waveH(b.x - HL * 0.8, b.z, tw), hl = waveH(b.x, b.z - 1, tw), hr = waveH(b.x, b.z + 1, tw);
     const pitch = Math.atan2(hf - hb, HL * 1.6) * 1.0, roll = -Math.atan2(hr - hl, 2) * 1.0;
     const sq = clamp(b.v / VMAX, 0, 1);
-    b.root.position.set(b.x, h0 - 0.12, b.z);
+    b.root.position.set(b.x, h0 - 0.32, b.z);
+    { const an = b.root.userData.anim, sp = 0.5 + 0.8 * clamp(b.v / VMAX, 0, 1);   // flutter harder the faster the boat goes
+      if (an) {
+        for (const f of an.flags) {   // wave travels from the pole (x = +w/2) to the free edge
+          const pa = f.g.attributes.position;
+          for (let i = 0; i < pa.count; i++) { const k = clamp((f.w / 2 - (f.flip ? -pa.getX(i) : pa.getX(i))) / f.w, 0, 1); pa.setZ(i, (f.flip ? -1 : 1) * 0.16 * sp * k * Math.sin(k * 7 - tw * 7)); }
+          pa.needsUpdate = true;
+        }
+        for (const t of an.tassels) { t.g.rotation.z = t.k * 0.22 * sp * Math.sin(tw * 4.5 + t.ph) - 0.12 * sp; t.g.rotation.x = 0.18 * sp * Math.sin(tw * 3.3 + t.ph * 1.7); }
+      } }
     b.root.rotation.set(roll * 0.8, 0, pitch + sq * 0.008);
     // strokes
     let mode = 0, u = 0;
@@ -1679,7 +1696,8 @@ function updateVisuals(dt, wall) {
 
 const camera2 = new THREE.PerspectiveCamera(48, 1, 0.5, 2600);
 const camPos2 = new THREE.Vector3(0, 8, 40), camLook2 = new THREE.Vector3();
-let splitOn = false, camSnap2 = true;
+let splitOn = false, camSnap2 = true, camOrbit = 0;   // camOrbit: user-dragged horizontal angle around the boat (0 = front view, up to 70 degrees toward the back)
+function orbitDes(d, l) { if (!camOrbit) return; const x = d.x - l.x, z = d.z - l.z, c = Math.cos(camOrbit), n = Math.sin(camOrbit); d.x = l.x + x * c - z * n; d.z = l.z + x * n + z * c; }
 const splitLine = document.createElement('div');
 splitLine.style.cssText = 'position:fixed;top:0;bottom:0;left:50%;width:4px;margin-left:-2px;background:#ffc62e;box-shadow:0 0 0 1px #7d0a1c;z-index:5;pointer-events:none;display:none';
 document.body.appendChild(splitLine);
@@ -1692,7 +1710,7 @@ function camGoal(hs, aspect, des, look) {
   let dist = (aspect < 1.1 ? 36 : 23) + (two ? 5 : 0) + Math.min(spread, 40) * 0.45;
   if (aspect < 0.8) dist = Math.min(95, Math.max(dist, 22 / aspect));   // narrow view (phone split-screen): pull back so the whole boat fits across
   const lead = hs.reduce((m, b) => Math.max(m, b.v), 0);
-  des.set(cx + 13 + Math.min(spread, 40) * 0.1, 7.8 + dist * 0.06, cz + dist);
+  des.set(cx + 13 + Math.min(spread, 40) * 0.1, 3.9 + dist * 0.04, cz + dist);
   look.set(cx + 2.5, window.innerHeight < 520 && aspect > 1.1 ? -3.2 : 1.8, cz - 3);   // short landscape phone: aim lower so boats sit above the tap panel
   fov += lead * 0.22 + (hs.some(b => b.boostT > 0) ? 4 : 0);
   if (G.state === 'results') { des.x += 10; des.y += 1; }
@@ -1718,7 +1736,7 @@ function updateCamera(dt, wall) {
     look.set(-27 + Math.sin(a * 0.8) * 3, 2.4, 5);
   } else {
     const hs = splitOn ? [vb[0]] : (vb.length ? vb : [boats[0]]);
-    fov = camGoal(hs, aspect, des, look);
+    fov = camGoal(hs, aspect, des, look); orbitDes(des, look);
   }
   const k = camSnap ? 1 : 1 - Math.exp(-dt * 3.2);
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
@@ -1727,7 +1745,7 @@ function updateCamera(dt, wall) {
   if ((splitOn ? vb[0].boostT > 0 : vb.some(b => b.boostT > 0)) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
   camera.lookAt(camLook);
   if (splitOn) {   // second camera follows the second player's boat
-    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], aspect, d2, l2);
+    const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], aspect, d2, l2); orbitDes(d2, l2);
     const k2 = camSnap2 ? 1 : 1 - Math.exp(-dt * 3.2);
     camPos2.lerp(d2, k2); camLook2.lerp(l2, camSnap2 ? 1 : 1 - Math.exp(-dt * 4)); camSnap2 = false;
     camera2.position.copy(camPos2);
@@ -1815,7 +1833,26 @@ window.addEventListener('keydown', e => {
     else if (P2KEYS.includes(code)) humanHit(G.humans[1]);
   }
 });
-canvas.addEventListener('pointerdown', () => { if (G.mode !== 2 && (G.state === 'race' || G.state === 'finishing')) { SFX.init(); humanHit(G.humans[0]); } });
+// hold the mouse and drag left/right to swing the camera around the boat (front <-> back); a click without dragging is still a tap
+{
+  let drag = null;
+  const tap = () => { if (G.mode !== 2 && (G.state === 'race' || G.state === 'finishing')) { SFX.init(); humanHit(G.humans[0]); } };
+  canvas.addEventListener('pointerdown', e => {
+    if (e.pointerType !== 'mouse') { tap(); return; }
+    drag = { x: e.clientX, moved: false }; try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 5) return;
+    drag.moved = true; drag.x = e.clientX;
+    camOrbit += dx * 0.008;
+    camOrbit = Math.max(0, Math.min(PI * 7 / 18, camOrbit));   // limited to 70 degrees: from the front view round toward the back
+    camSnap = true; camSnap2 = true;
+  });
+  const end = () => { if (drag && !drag.moved) tap(); drag = null; };
+  canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', () => { drag = null; });
+}
 
 function togglePause() {
   if (G.mode === 3) return;   // no pausing an online race
@@ -1879,15 +1916,15 @@ const hex6 = n => '#' + n.toString(16).padStart(6, '0');
 const clean = v => String(v == null ? '' : v).replace(/[^\p{L}\p{M}\p{N} _-]/gu, '').trim().slice(0, 16);   // names reach innerHTML (HUD) → letters/digits only
 const col = v => Number.isInteger(v) && v >= 0 && v <= 0xffffff ? v : 0x888888;
 const strHash = t => { let h = 0; for (let i = 0; i < t.length; i += 97) h = (h * 31 + t.charCodeAt(i)) | 0; return h + ':' + t.length; };
-const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '');
+const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '') + '-' + s.style + '-' + (s.hull2 != null ? s.hull2 : '');
 function mk(o) {   // build a scheme from stored / received data (never trust it)
   o = o || {}; const sh = col(o.sh), en = clean(o.en) || 'Boat';
-  return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
+  return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, hull2: o.h2 == null ? null : col(o.h2), style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
     num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3),
     shirt: o.sc == null ? null : col(o.sc), oar: o.oc == null ? null : col(o.oc), pole: o.pc == null ? null : col(o.pc),
     skin: typeof o.img === 'string' && o.img.length <= 900000 && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(o.img) ? o.img : '' };
 }
-const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, n: s.num, img: s.skin, sc: s.shirt, oc: s.oar, pc: s.pole });
+const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, h2: s.hull2, n: s.num, img: s.skin, sc: s.shirt, oc: s.oar, pc: s.pole });
 const shade = (c, f) => ((((c >> 16) & 255) * f) << 16 | (((c >> 8) & 255) * f) << 8 | ((c & 255) * f)) >>> 0;
 let GARAGE = [];
 try { GARAGE = (JSON.parse(localStorage.getItem('omtouk-garage')) || []).slice(0, MAXB).map(mk); } catch (e) { }
@@ -1919,7 +1956,7 @@ function applyModels() {   // your boat: boats[0] in solo / local modes, your si
 function boatSvg(s, id) {
   const h = hex6(s.hull), d = hex6(s.dark), f = hex6(s.shirts[0]);
   const hp = 'M3 20 Q8 12 14 17 L82 17 Q88 12 93 20 Q86 38 62 39 L34 39 Q10 38 3 20Z';
-  return '<svg viewBox="0 0 96 48" aria-hidden="true"><defs><linearGradient id="bg' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + h + '"/><stop offset="1" stop-color="' + d + '"/></linearGradient><clipPath id="cp' + id + '"><path d="' + hp + '"/></clipPath></defs>' +
+  return '<svg viewBox="0 0 96 48" aria-hidden="true"><defs><linearGradient id="bg' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + h + '"/>' + (s.hull2 != null ? '<stop offset=".3" stop-color="' + h + '"/><stop offset=".6" stop-color="' + hex6(s.hull2) + '"/><stop offset="1" stop-color="' + hex6(s.hull2) + '"/>' : '<stop offset="1" stop-color="' + d + '"/>') + '</linearGradient><clipPath id="cp' + id + '"><path d="' + hp + '"/></clipPath></defs>' +
     '<path d="' + hp + '" fill="url(#bg' + id + ')" stroke="#f6c21c" stroke-width="1.6"/>' +
     (s.skin ? '<image href="' + s.skin + '" x="3" y="12" width="90" height="28" preserveAspectRatio="none" clip-path="url(#cp' + id + ')"/><path d="' + hp + '" fill="none" stroke="#f6c21c" stroke-width="1.6"/>' : '') +
     '<path d="M10 22 H86" stroke="#f6c21c" stroke-width="1.2" opacity=".8"/>' +
@@ -1977,7 +2014,7 @@ $('btnDelBoat').onclick = () => {
 const CB = { skin: '', edit: -1 };
 function cbPreview() {
   const hull = parseInt($('cbHull').value.slice(1), 16), sh = parseInt($('cbCrew').value.slice(1), 16);
-  $('cbPrev').innerHTML = boatSvg(mk({ hull, dark: shade(hull, 0.55), sh, img: CB.skin, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
+  $('cbPrev').innerHTML = boatSvg(mk({ hull, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, img: CB.skin, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
   $('cbClear').classList.toggle('hidden', !CB.skin);
   $('btnCbUpload').querySelector('i').textContent = CB.skin ? 'CHANGE PICTURE' : 'UPLOAD PICTURE';
 }
@@ -2001,11 +2038,15 @@ $('cbFile').onchange = e => {
   im.onerror = () => { URL.revokeObjectURL(url); alert('Could not read that picture. · មិនអាចអានរូបភាពបាន'); };
   im.src = url;
 };
+function setDance(v) { $('cbDance').value = v; $('cbDanceGrid').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.d === +v)); }
+$('cbDanceGrid').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDance(b.dataset.d); });
 function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new one
   CB.edit = edit;
   const s = edit >= 0 ? GARAGE[edit] : null;
   CB.skin = s ? s.skin : ''; $('cbNum').value = s ? s.num : ''; $('cbName').value = s ? s.kh : '';
   $('cbShirt').value = hex6(s && s.shirt != null ? s.shirt : 0xf7c71c); $('cbOar').value = hex6(s && s.oar != null ? s.oar : 0xf3f0e6); $('cbPole').value = hex6(s && s.pole != null ? s.pole : 0xe9c477);
+  $('cbMixOn').checked = !!(s && s.hull2 != null); $('cbHull2').value = hex6(s && s.hull2 != null ? s.hull2 : 0xffd23f);
+  setDance(s && s.style < 4 ? s.style : 0);
   $('cbHull').value = s ? hex6(s.hull) : '#c8102e'; $('cbCrew').value = s ? hex6(s.shirts[0]) : '#2f78e0';
   $('cbTitle').textContent = s ? 'កែទូក · Edit boat' : 'ទូកផ្ទាល់ខ្លួន · Custom boat';
   $('btnCbSave').querySelector('i').textContent = s ? 'SAVE CHANGES' : 'SAVE';
@@ -2013,13 +2054,14 @@ function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new o
 }
 $('btnCustom').onclick = () => { if (GARAGE.length < MAXB) openCB(-1); };
 $('btnEditBoat').onclick = () => { const i = GARAGE.indexOf(curPick()); if (i >= 0) openCB(i); };
+$('cbHull2').oninput = () => { $('cbMixOn').checked = true; cbPreview(); }; $('cbMixOn').onchange = cbPreview;
 $('cbHull').oninput = $('cbCrew').oninput = $('cbShirt').oninput = $('cbOar').oninput = $('cbPole').oninput = cbPreview;
 $('cbName').addEventListener('keydown', e => e.stopPropagation());
 $('btnCbCancel').onclick = () => $('customBoat').classList.add('hidden');
 $('btnCbSave').onclick = () => {
   const ed = CB.edit; if (ed < 0 && GARAGE.length >= MAXB) return;
   const hull = parseInt($('cbHull').value.slice(1), 16), sh = parseInt($('cbCrew').value.slice(1), 16), nm = clean($('cbName').value) || (ed >= 0 ? GARAGE[ed].kh : 'Custom ' + (GARAGE.length + 1));
-  const s = mk({ kh: nm, en: nm, hull, dark: shade(hull, 0.55), sh, c: 1, y: hull % 5, n: $('cbNum').value, img: CB.skin, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
+  const s = mk({ kh: nm, en: nm, hull, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, c: 1, y: +$('cbDance').value, n: $('cbNum').value, img: CB.skin, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
   if (GARAGE.some((g, gi) => gi !== ed && keyOf(g) === keyOf(s))) { alert('You already have this boat. · មានទូកនេះរួចហើយ'); return; }
   if (ed >= 0) { const old = GARAGE[ed]; GARAGE[ed] = s; if (PICK.me === old) PICK.me = s; if (PICK.p2 === old) PICK.p2 = s; } else GARAGE.push(s);
   saveGarage();
