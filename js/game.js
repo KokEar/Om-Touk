@@ -1099,16 +1099,16 @@ function makeBoat(si) {
   const steerUpdate = (t) => {
     const sweep = Math.sin(t);
     // oar is held outboard of the hull so it never passes through the gunwale
-    sdir.set(-0.45 + 0.15 * sweep, -0.8, 0.35).normalize();   // same slope and outboard lean as the crew paddles
-    const G = sV[0].set(SX - 0.1, 1.5, 0.68);
-    const tip = sV[1].copy(G).addScaledVector(sdir, 1.8), hnd = sV[2].copy(G).addScaledVector(sdir, -0.15);
+    sdir.set(-0.45 + 0.15 * sweep, -0.8, 0.5).normalize();   // same slope and outboard lean as the crew paddles
+    const G = sV[0].set(SX + 0.2, 1.4, 0.5);
+    const tip = sV[1].copy(G).addScaledVector(sdir, 1.8), hnd = sV[2].copy(G).addScaledVector(sdir, -0.6);
     aimV(oarShaft, hnd, tip);
     oarBlade.position.copy(tip).addScaledVector(sdir, -0.2); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
     steer.rotation.y = 0.05 * sweep;
     const shR = new THREE.Vector3(SX, SY + 1.3, 0.25), shL = new THREE.Vector3(SX, SY + 1.3, -0.25), el = new THREE.Vector3(), wr = new THREE.Vector3();
-    ik2(shR, G, 0.32, 0.32, new THREE.Vector3(-0.3, 0.1, 1), el, wr);           // right hand steers the oar; arm reaches out and forward with a gentle, natural elbow bend
+    ik2(shR, G, 0.4, 0.4, new THREE.Vector3(-0.3, -1, 0.5), el, wr);           // right hand grips the steering oar at chest height; elbow bent naturally, hanging down and slightly out
     aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr); stShoulders[0].position.copy(shR); stElbows[0].position.copy(el); stHandAt(stPalms[0], el, wr);
-    ik2(shL, sV[3].set(SX + 0.18, SY + 0.85, -0.3), 0.32, 0.32, new THREE.Vector3(-0.1, 0.1, -1), el, wr);   // left hand rests on the hip
+    ik2(shL, sV[3].copy(G).addScaledVector(sdir, -0.4), 0.4, 0.4, new THREE.Vector3(-0.3, -0.6, -1), el, wr);   // left hand grips the oar higher up the shaft (two-handed hold)
     aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr); stShoulders[1].position.copy(shL); stElbows[1].position.copy(el); stHandAt(stPalms[1], el, wr);
   };
   steerUpdate(0);
@@ -1149,7 +1149,7 @@ function poseRower(r, u, mode, T) {
   const s = r.side, cl = Math.cos(lean), sl = Math.sin(lean);
   const shY = 0.27 + 0.84 * cl, shX = r.sx - 0.84 * sl;
   const inner = r.sz - s * 0.28, outer = r.sz + s * 0.28;
-  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.5;
+  const gx = shX + 0.34, gy = shY + 0.16 + 0.1 * lift, gz = r.sz + s * 0.65;
   // keep the blade well outside the hull wall at its depth
   const hp = r.hullP, hsn = clamp((hp.htop - ty) / hp.hd, 0, 1), wallW = hp.hw * Math.sqrt(1 - hsn * hsn);
   out = Math.max(out + 0.7, wallW + 1.45 - Math.abs(r.sz));
