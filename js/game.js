@@ -252,11 +252,26 @@ scaleTex.wrapS = scaleTex.wrapT = THREE.RepeatWrapping;
 
 // Painted hull like a real Cambodian racing boat: green sheer, red/orange ornament band with gold diamonds and green leaves.
 // Painted hull in the style of a real Cambodian racing boat: coloured body, gold chain border, black-outlined gold leaf flourishes, an eye near the bow and a wreath roundel amidships. Only the body colour changes per boat.
-function paintHull(c, W, HH, hull, dark, hull2) {
+const zebraList = (st, sz) => { const a = (st || []).map((v, i) => v == null ? null : [v, sz && sz[i] ? sz[i] : 3]).filter(Boolean); return a.length === 1 ? [a[0], [null, a[0][1]]] : a; };   // [colour, size] pairs in order; a lone colour alternates with the hull   // ticked colours in order; a lone colour alternates with the hull
+function paintHull(c, W, HH, hull, dark, hull2, stripes, sw, centre, zsz) {
   const hx = n => '#' + n.toString(16).padStart(6, '0');
   const GOLD = '#f2c230', GOLD2 = '#c98e12', HI = '#ffe27a', INK = '#14100a';
   const g = c.createLinearGradient(0, 0, 0, HH); g.addColorStop(0, hx(hull)); if (hull2 != null) { g.addColorStop(0.2, hx(hull)); g.addColorStop(0.42, hx(hull2)); g.addColorStop(1, hx(hull2)); } else { g.addColorStop(0.55, hx(hull)); g.addColorStop(1, hx(dark)); }
   c.fillStyle = g; c.fillRect(0, 0, W, HH);
+  // paint sections along the length (x = 0 stern … W bow): back colour | centre colour | front colour, slanted edges
+  const zc = zebraList(stripes, zsz);
+  if (zc.length || centre != null) {
+    const f = [0.12, 0.2, 0.3][sw == null ? 1 : sw], xl = W * (0.5 - f), xr = W * (0.5 + f), d = -HH * 0.5;   // d < 0: edges lean the other way
+    const poly = (cl, pts) => { if (cl == null) return; c.fillStyle = hx(cl); c.beginPath(); pts.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fill(); };
+    poly(centre, [[xl, 0], [xr, 0], [xr - d, HH], [xl - d, HH]]);                    // centre: solid
+    if (zc.length) {                      // front & back ends: zebra of the two colours
+      c.save(); c.beginPath();
+      c.moveTo(0, 0); c.lineTo(xl, 0); c.lineTo(xl - d, HH); c.lineTo(0, HH); c.closePath();
+      c.moveTo(xr, 0); c.lineTo(W, 0); c.lineTo(W, HH); c.lineTo(xr - d, HH); c.closePath(); c.clip();
+      for (let x = d, k = 0; x < W - d; k++) { const [cl, n] = zc[k % zc.length], w = n * 14; poly(cl, [[x, 0], [x + w, 0], [x + w - d, HH], [x - d, HH]]); x += w; }
+      c.restore();
+    }
+  }
   // rim + chain border
   c.fillStyle = GOLD; c.fillRect(0, 0, W, HH * 0.035);
   c.fillStyle = INK; c.fillRect(0, HH * 0.035, W, HH * 0.012);
@@ -321,7 +336,7 @@ function hullTexture(s) {
   const W = 2048, H = 512, HH = H / 2;
   const tex = canvasTex(W, H, (c) => {
     // upper half: rim (top) → keel (bottom); then mirrored for the other side
-    paintHull(c, W, HH, s.hull, s.dark, s.hull2);   // photo-style painted hull in the boat's own colour
+    paintHull(c, W, HH, s.hull, s.dark, s.hull2, s.stripes, s.stripeW, s.centre, s.stripeSz);   // photo-style painted hull in the boat's own colour
     if (s.skin && skinReady(s.skin)) { c.drawImage(SKINS.get(s.skin), 0, 0, W, HH); c.fillStyle = '#f6c21c'; c.fillRect(0, 0, W, HH * 0.035); }   // uploaded picture replaces the painted skin
     c.save(); c.translate(0, H); c.scale(1, -1); c.drawImage(c.canvas, 0, 0, W, HH, 0, 0, W, HH); c.restore();
   });
@@ -2250,15 +2265,15 @@ const hex6 = n => '#' + n.toString(16).padStart(6, '0');
 const clean = v => String(v == null ? '' : v).replace(/[^\p{L}\p{M}\p{N} _-]/gu, '').trim().slice(0, 16);   // names reach innerHTML (HUD) → letters/digits only
 const col = v => Number.isInteger(v) && v >= 0 && v <= 0xffffff ? v : 0x888888;
 const strHash = t => { let h = 0; for (let i = 0; i < t.length; i += 97) h = (h * 31 + t.charCodeAt(i)) | 0; return h + ':' + t.length; };
-const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '') + '-' + s.style + '-' + (s.hull2 != null ? s.hull2 : '');
+const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '') + '-' + s.style + '-' + (s.hull2 != null ? s.hull2 : '') + '-' + (s.stripes || []).join(',') + '/' + (s.stripeSz || []).join(',') + '-' + (s.stripeW == null ? 1 : s.stripeW) + '-' + (s.centre != null ? s.centre : '');
 function mk(o) {   // build a scheme from stored / received data (never trust it)
   o = o || {}; const sh = col(o.sh), en = clean(o.en) || 'Boat';
-  return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, hull2: o.h2 == null ? null : col(o.h2), style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
+  return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, hull2: o.h2 == null ? null : col(o.h2), stripes: [0, 1, 2, 3].map(i => Array.isArray(o.zs) && o.zs[i] != null ? col(o.zs[i]) : null), stripeSz: [0, 1, 2, 3].map(i => Array.isArray(o.zz) && Number.isInteger(o.zz[i]) ? clamp(o.zz[i], 1, 6) : 3), centre: o.zc == null ? null : col(o.zc), stripeW: Number.isInteger(o.zw) ? clamp(o.zw, 0, 2) : 1, style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
     num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3),
     shirt: o.sc == null ? null : col(o.sc), oar: o.oc == null ? null : col(o.oc), pole: o.pc == null ? null : col(o.pc),
     skin: typeof o.img === 'string' && o.img.length <= 900000 && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(o.img) ? o.img : '' };
 }
-const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, h2: s.hull2, n: s.num, img: s.skin, sc: s.shirt, oc: s.oar, pc: s.pole });
+const ser = s => ({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], c: s.custom ? 1 : 0, y: s.style, h2: s.hull2, zs: s.stripes, zz: s.stripeSz, zc: s.centre, zw: s.stripeW, n: s.num, img: s.skin, sc: s.shirt, oc: s.oar, pc: s.pole });
 const shade = (c, f) => ((((c >> 16) & 255) * f) << 16 | (((c >> 8) & 255) * f) << 8 | ((c & 255) * f)) >>> 0;
 let GARAGE = [];
 try { GARAGE = (JSON.parse(localStorage.getItem('omtouk-garage')) || []).slice(0, MAXB).map(mk); } catch (e) { }
@@ -2292,6 +2307,10 @@ function boatSvg(s, id) {
   const hp = 'M3 20 Q8 12 14 17 L82 17 Q88 12 93 20 Q86 38 62 39 L34 39 Q10 38 3 20Z';
   return '<svg viewBox="0 0 96 48" aria-hidden="true"><defs><linearGradient id="bg' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + h + '"/>' + (s.hull2 != null ? '<stop offset=".3" stop-color="' + h + '"/><stop offset=".6" stop-color="' + hex6(s.hull2) + '"/><stop offset="1" stop-color="' + hex6(s.hull2) + '"/>' : '<stop offset="1" stop-color="' + d + '"/>') + '</linearGradient><clipPath id="cp' + id + '"><path d="' + hp + '"/></clipPath></defs>' +
     '<path d="' + hp + '" fill="url(#bg' + id + ')" stroke="#f6c21c" stroke-width="1.6"/>' +
+    (() => { const f = [0.12, 0.2, 0.3][s.stripeW == null ? 1 : s.stripeW], xl = 3 + 90 * (0.5 - f), xr = 3 + 90 * (0.5 + f), P = (cl, d) => cl == null ? '' : '<path fill="' + hex6(cl) + '" d="' + d + '"/>';
+      const st = zebraList(s.stripes, s.stripeSz); let z = '';
+      if (st.length) for (let x = -6, k = 0; x < 100; k++) { const hb = st[k % st.length][1] * 1.17; z += P(st[k % st.length][0], 'M' + x + ' 12 h' + hb + ' L' + (x + hb - 3) + ' 40 H' + (x - 3) + 'Z'); x += hb; }
+      return '<g clip-path="url(#cp' + id + ')"><defs><clipPath id="zc' + id + '"><path d="M0 12 H' + (xl + 3) + ' L' + xl + ' 40 H0Z M' + (xr + 3) + ' 12 H96 V40 H' + xr + 'Z"/></clipPath></defs><g clip-path="url(#zc' + id + ')">' + z + '</g>' + P(s.centre, 'M' + (xl + 3) + ' 12 H' + (xr + 3) + ' L' + xr + ' 40 H' + xl + 'Z') + '</g>'; })() +
     (s.skin ? '<image href="' + s.skin + '" x="3" y="12" width="90" height="28" preserveAspectRatio="none" clip-path="url(#cp' + id + ')"/><path d="' + hp + '" fill="none" stroke="#f6c21c" stroke-width="1.6"/>' : '') +
     '<path d="M10 22 H86" stroke="#f6c21c" stroke-width="1.2" opacity=".8"/>' +
     '<g fill="' + hex6(s.shirt != null ? s.shirt : 0xf7c71c) + '">' + [20, 30, 40, 50, 60, 70].map(x => '<circle cx="' + x + '" cy="13" r="3.4"/>').join('') + '</g>' +
@@ -2346,9 +2365,14 @@ $('btnDelBoat').onclick = () => {
 };
 /* custom boat dialog */
 const CB = { skin: '', edit: -1 };
+const CBS = [['cbZebraOn', 'cbStripe', 0xffffff, 'cbSz0'], ['cbMix2On', 'cbStripe2', 0x111111, 'cbSz1'], ['cbZ3On', 'cbStripe3', 0xe53935, 'cbSz2'], ['cbZ4On', 'cbStripe4', 0xffd23f, 'cbSz3']];
+const cbStripes = () => CBS.map(r => $(r[0]).checked ? parseInt($(r[1]).value.slice(1), 16) : null);   // up to 4 zebra colours
+const cbSizes = () => CBS.map(r => +$(r[3]).value);
+const cbCentreVal = () => $('cbCenterOn').checked ? parseInt($('cbCenter').value.slice(1), 16) : null;
+const cbHullVal = () => $('cbHullOn').checked ? parseInt($('cbHull').value.slice(1), 16) : 0xffffff;   // hull colour unticked → white
 function cbPreview() {
-  const hull = parseInt($('cbHull').value.slice(1), 16), sh = parseInt($('cbCrew').value.slice(1), 16);
-  $('cbPrev').innerHTML = boatSvg(mk({ hull, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, img: CB.skin, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
+  const hull = cbHullVal(), sh = parseInt($('cbCrew').value.slice(1), 16);
+  $('cbPrev').innerHTML = boatSvg(mk({ hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, img: CB.skin, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
   $('cbClear').classList.toggle('hidden', !CB.skin);
   $('btnCbUpload').querySelector('i').textContent = CB.skin ? 'CHANGE PICTURE' : 'UPLOAD PICTURE';
 }
@@ -2379,23 +2403,29 @@ function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new o
   const s = edit >= 0 ? GARAGE[edit] : null;
   CB.skin = s ? s.skin : ''; $('cbNum').value = s ? s.num : ''; $('cbName').value = s ? s.kh : '';
   $('cbShirt').value = hex6(s && s.shirt != null ? s.shirt : 0xf7c71c); $('cbOar').value = hex6(s && s.oar != null ? s.oar : 0xf3f0e6); $('cbPole').value = hex6(s && s.pole != null ? s.pole : 0xe9c477);
+  CBS.forEach((r, i) => { const v = s && s.stripes ? s.stripes[i] : null; $(r[0]).checked = v != null; $(r[1]).value = hex6(v != null ? v : r[2]); $(r[3]).value = s && s.stripeSz ? s.stripeSz[i] : 3; });
+  $('cbStripeW').value = s ? s.stripeW : 1; $('cbCenterOn').checked = !!(s && s.centre != null); $('cbCenter').value = hex6(s && s.centre != null ? s.centre : 0xffd23f);
   $('cbMixOn').checked = !!(s && s.hull2 != null); $('cbHull2').value = hex6(s && s.hull2 != null ? s.hull2 : 0xffd23f);
   setDance(s && s.style < 4 ? s.style : 0);
-  $('cbHull').value = s ? hex6(s.hull) : '#c8102e'; $('cbCrew').value = s ? hex6(s.shirts[0]) : '#2f78e0';
+  $('cbHullOn').checked = !s || s.hull !== 0xffffff; $('cbHull').value = s && s.hull !== 0xffffff ? hex6(s.hull) : '#c8102e'; $('cbCrew').value = s ? hex6(s.shirts[0]) : '#2f78e0';
   $('cbTitle').textContent = s ? 'កែទូក · Edit boat' : 'ទូកផ្ទាល់ខ្លួន · Custom boat';
   $('btnCbSave').querySelector('i').textContent = s ? 'SAVE CHANGES' : 'SAVE';
   cbPreview(); $('customBoat').classList.remove('hidden'); $('cbName').focus();
 }
 $('btnCustom').onclick = () => { if (GARAGE.length < MAXB) openCB(-1); };
 $('btnEditBoat').onclick = () => { const i = GARAGE.indexOf(curPick()); if (i >= 0) openCB(i); };
+CBS.forEach(r => { $(r[1]).oninput = () => { $(r[0]).checked = true; cbPreview(); }; $(r[0]).onchange = cbPreview; $(r[3]).oninput = cbPreview; }); $('cbStripeW').oninput = cbPreview;
+$('cbCenter').oninput = () => { $('cbCenterOn').checked = true; cbPreview(); }; $('cbCenterOn').onchange = cbPreview;
+
 $('cbHull2').oninput = () => { $('cbMixOn').checked = true; cbPreview(); }; $('cbMixOn').onchange = cbPreview;
-$('cbHull').oninput = $('cbCrew').oninput = $('cbShirt').oninput = $('cbOar').oninput = $('cbPole').oninput = cbPreview;
+$('cbHull').oninput = () => { $('cbHullOn').checked = true; cbPreview(); }; $('cbHullOn').onchange = cbPreview;
+$('cbCrew').oninput = $('cbShirt').oninput = $('cbOar').oninput = $('cbPole').oninput = cbPreview;
 $('cbName').addEventListener('keydown', e => e.stopPropagation());
 $('btnCbCancel').onclick = () => $('customBoat').classList.add('hidden');
 $('btnCbSave').onclick = () => {
   const ed = CB.edit; if (ed < 0 && GARAGE.length >= MAXB) return;
-  const hull = parseInt($('cbHull').value.slice(1), 16), sh = parseInt($('cbCrew').value.slice(1), 16), nm = clean($('cbName').value) || (ed >= 0 ? GARAGE[ed].kh : 'Custom ' + (GARAGE.length + 1));
-  const s = mk({ kh: nm, en: nm, hull, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, c: 1, y: +$('cbDance').value, n: $('cbNum').value, img: CB.skin, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
+  const hull = cbHullVal(), sh = parseInt($('cbCrew').value.slice(1), 16), nm = clean($('cbName').value) || (ed >= 0 ? GARAGE[ed].kh : 'Custom ' + (GARAGE.length + 1));
+  const s = mk({ kh: nm, en: nm, hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, c: 1, y: +$('cbDance').value, n: $('cbNum').value, img: CB.skin, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) });
   if (GARAGE.some((g, gi) => gi !== ed && keyOf(g) === keyOf(s))) { alert('You already have this boat. · មានទូកនេះរួចហើយ'); return; }
   if (ed >= 0) { const old = GARAGE[ed]; GARAGE[ed] = s; if (PICK.me === old) PICK.me = s; if (PICK.p2 === old) PICK.p2 = s; } else GARAGE.push(s);
   saveGarage();

@@ -132,10 +132,20 @@
     <label class="cbrow">ឈ្មោះ · Name<input id="cbName" maxlength="16" placeholder="My boat" autocomplete="off" spellcheck="false"></label>
     <label class="cbrow">លេខទូក · Boat number (shown on the stern flag)<input id="cbNum" inputmode="numeric" maxlength="3" placeholder="e.g. 7" autocomplete="off"></label>
     <div class="cbcols">
-      <label class="cbrow">ពណ៌ទូក · Hull<input id="cbHull" type="color" value="#c8102e"></label>
+      <div class="cbrow">ពណ៌ទូក · Hull
+        <div class="mixrow"><input type="checkbox" id="cbHullOn" title="Hull colour on/off (off = white)" checked><input id="cbHull" type="color" value="#c8102e"></div>
+      </div>
       <div class="cbrow">ពណ៌ទូកទី២ · Hull 2nd colour (mix)
         <div class="mixrow"><input type="checkbox" id="cbMixOn" title="Mix two colours"><input id="cbHull2" type="color" value="#ffd23f"></div>
       </div>
+    </div>
+    <div class="cbrow">ក្បាល &amp; កន្ទុយ · Front &amp; back ends (up to 4 colours mix like zebra)
+      <div class="zrow"><div class="zcell"><div class="mixrow"><input type="checkbox" id="cbZebraOn" title="Zebra colour 1"><input id="cbStripe" type="color" value="#ffffff"></div><div class="mixrow"><span>ទទឹង · Size</span><input id="cbSz0" type="range" min="1" max="6" step="1" value="3"></div></div>
+      <div class="zcell"><div class="mixrow"><input type="checkbox" id="cbMix2On" title="Zebra colour 2"><input id="cbStripe2" type="color" value="#111111"></div><div class="mixrow"><span>ទទឹង · Size</span><input id="cbSz1" type="range" min="1" max="6" step="1" value="3"></div></div></div>
+      <div class="zrow"><div class="zcell"><div class="mixrow"><input type="checkbox" id="cbZ3On" title="Zebra colour 3"><input id="cbStripe3" type="color" value="#e53935"></div><div class="mixrow"><span>ទទឹង · Size</span><input id="cbSz2" type="range" min="1" max="6" step="1" value="3"></div></div>
+      <div class="zcell"><div class="mixrow"><input type="checkbox" id="cbZ4On" title="Zebra colour 4"><input id="cbStripe4" type="color" value="#ffd23f"></div><div class="mixrow"><span>ទទឹង · Size</span><input id="cbSz3" type="range" min="1" max="6" step="1" value="3"></div></div></div>
+      <div class="mixrow"><input type="checkbox" id="cbCenterOn" title="Paint the centre of the boat"><input id="cbCenter" type="color" value="#ffd23f"><span>កណ្ដាល · Centre paint</span></div>
+      <div class="mixrow"><span>កណ្ដាល · Centre size</span><input id="cbStripeW" type="range" min="0" max="2" step="1" value="1"></div>
     </div>
     <div class="cbcols">
       <label class="cbrow">ពណ៌ទង់ · Flag<input id="cbCrew" type="color" value="#2f78e0"></label>
