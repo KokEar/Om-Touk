@@ -2268,8 +2268,14 @@ const shade = (c, f) => ((((c >> 16) & 255) * f) << 16 | (((c >> 8) & 255) * f) 
 let GARAGE = [];
 try { GARAGE = (JSON.parse(localStorage.getItem('omtouk-garage')) || []).slice(0, MAXB).map(mk); } catch (e) { }
 if (!GARAGE.length) GARAGE = SCHEMES.map((s, i) => mk({ kh: s.kh, en: s.en, hull: s.hull, dark: s.dark, sh: s.shirts[0], y: i }));
-function saveGarage() { try { localStorage.setItem('omtouk-garage', JSON.stringify(GARAGE.map(ser))); } catch (e) { } }
-const PICK = { me: GARAGE[0], p2: null, peer: null, who: 1 };   // me = Player 1 / you online, p2 = Player 2 (local 2-player), who = whose boat the garage dialog is choosing
+function saveGarage() { try { localStorage.setItem('omtouk-garage', JSON.stringify(GARAGE.map(ser))); } catch (e) { } sendGarage(); }
+function sendGarage() {   // online: let the opponent see all of our boats (view-only); drop the big pictures if the whole garage is too heavy
+  if (!NET.ready || G.mode !== 3) return;
+  let g = GARAGE.map(ser);
+  if (JSON.stringify(g).length > 3000000) g = g.map((o, i) => GARAGE[i] === PICK.me ? o : Object.assign({}, o, { img: '', bw: '' }));
+  netSend({ t: 'garage', g });
+}
+const PICK = { me: GARAGE[0], p2: null, peer: null, peerGarage: [], who: 1 };   // me = Player 1 / you online, p2 = Player 2 (local 2-player), who = whose boat the garage dialog is choosing
 try { const k = sessionStorage.getItem('omtouk-boat'); const f = GARAGE.find(s => keyOf(s) === k); if (f) PICK.me = f; } catch (e) { }
 try { const k = sessionStorage.getItem('omtouk-boat2'); PICK.p2 = GARAGE.find(s => keyOf(s) === k) || null; } catch (e) { }
 function saveBoat() { try { sessionStorage.setItem('omtouk-boat', keyOf(PICK.me)); if (PICK.p2) sessionStorage.setItem('omtouk-boat2', keyOf(PICK.p2)); } catch (e) { } }
@@ -2331,6 +2337,16 @@ function renderPick() {
   $('garageCount').textContent = GARAGE.length + ' / ' + MAXB;
   $('btnCustom').disabled = GARAGE.length >= MAXB;
   $('btnDelBoat').disabled = GARAGE.length <= 1;
+  // online: the opponent's whole garage, view-only, with their current pick highlighted
+  const pg = G.mode === 3 && NET.ready ? PICK.peerGarage : [];
+  $('peerGarage').classList.toggle('hidden', !pg.length);
+  const pb = $('peerBoats'); pb.innerHTML = '';
+  pg.forEach((s, i) => {
+    const b = document.createElement('button'); b.disabled = true; b.style.setProperty('--h', hex6(s.hull));
+    b.classList.toggle('on', !!PICK.peer && keyOf(PICK.peer) === keyOf(s));
+    b.innerHTML = boatSvg(s, 'pg' + i) + '<b>' + s.kh + '</b><small>' + (s.custom ? 'Custom' : s.en) + '</small>';
+    pb.appendChild(b);
+  });
   const ps = NET.ready && PICK.peer;
   $('peerPick').textContent = ps ? 'ដៃគូ · Opponent: ' + ps.kh : '';
 }
@@ -2494,7 +2510,7 @@ function refreshMenu() {
 }
 function netClose() {
   const c = NET.conn, p = NET.peer;
-  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = ''; PICK.peer = null;   // NET.rx is kept so the other boat keeps gliding while a link is rebuilt
+  NET.conn = NET.peer = null; NET.role = null; NET.ready = false; NET.code = ''; PICK.peer = null; PICK.peerGarage = [];   // NET.rx is kept so the other boat keeps gliding while a link is rebuilt
   try { c && c.close(); } catch (e) { }
   try { p && p.destroy(); } catch (e) { }
 }
@@ -2503,7 +2519,7 @@ function netAttach(c) {
   NET.conn = c;
   const opened = () => {
     if (NET.conn !== c) return;
-    NET.ready = true; netSend({ t: 'hi' }); netSend({ t: 'boat', s: ser(PICK.me) }); refreshMenu(); renderPick();
+    NET.ready = true; netSend({ t: 'hi' }); netSend({ t: 'boat', s: ser(PICK.me) }); sendGarage(); refreshMenu(); renderPick();
     netStatus(NET.role === 'host' ? 'Friend joined! Press START RACE.' : 'Connected! Waiting for the host to start…', 'ok');
     NET.waiting = false; clearTimeout(NET.waitTimer);
     if (NET.resumeSnap) { const r = NET.resumeSnap; NET.resumeSnap = null; restoreRace(r); }
@@ -2587,6 +2603,7 @@ function netOnData(m) {
     if (G.state === 'menu' && NET.role === 'guest' && keyOf(PICK.peer) === keyOf(PICK.me)) { const f = GARAGE.find(s => keyOf(s) !== keyOf(PICK.peer)); if (f) { PICK.me = f; saveBoat(); netSend({ t: 'boat', s: ser(f) }); } }   // same boat chosen: host keeps it
     applyModels(); renderPick();
   }
+  else if (m.t === 'garage' && Array.isArray(m.g)) { PICK.peerGarage = m.g.slice(0, MAXB).map(o => mk(o && typeof o === 'object' ? o : {})); renderPick(); }
   else if (m.t === 's') NET.rx = Object.assign(m, { at: G.clock });
 }
 function netState(b) { return { x: b.x, v: b.v, sy: b.sync, cb: b.combo, mc: b.maxCombo, bt: b.boostT, sc: b.score, p: b.stats.p, g: b.stats.g, m: b.stats.m, f: b.finished ? 1 : 0, ft: b.finishT }; }

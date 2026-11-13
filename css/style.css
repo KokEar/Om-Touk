@@ -262,3 +262,8 @@ button.big.green:active{box-shadow:0 1px 0 #0a5324}
 .mixrow input[type=range]{flex:1;accent-color:var(--gold)}
 .mixrow span{font-size:12px;opacity:.85;white-space:nowrap}
 .zrow{display:flex;gap:12px}.zcell{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+/* online: the opponent's garage (view-only) */
+#peerGarage .peerhead{margin:-10px 0 8px;font-size:14px;font-weight:700;color:var(--cream);opacity:.85;text-align:center}
+#garage .boatpick.peer{margin-bottom:22px}
+#garage .boatpick.peer button{cursor:default;opacity:.92}
+#garage .boatpick.peer button.on{opacity:1}
