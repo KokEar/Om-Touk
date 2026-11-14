@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Kantumruy+Pro:wght@400;600;700&family=Moul&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=22">
+<link rel="stylesheet" href="css/style.css?v=23">
 </head>
 <body>
 <canvas id="gl"></canvas>
@@ -211,7 +211,20 @@
   <div class="card">
     <h3>ផ្អាក · Paused</h3>
     <button id="btnResume" class="big green"><b>បន្តទៀត</b><i>Resume</i></button>
+    <button id="btnPauseAgain" class="big yellow"><b>ប្រណាំងម្ដងទៀត</b><i>Race Again</i></button>
     <button id="btnPauseMenu" class="big alt"><b>ម៉ឺនុយ</b><i>Back to menu</i></button>
+  </div>
+</div>
+
+<!-- ============ RELOAD CONFIRM ============ -->
+<div id="reloadAsk" class="overlay hidden">
+  <div class="card">
+    <h3>ផ្ទុកឡើងវិញ? · Reload the game?</h3>
+    <p style="text-align:center;opacity:.85;margin:6px 0 2px">Your current race will be lost.</p>
+    <div class="btnrow">
+      <button id="btnReloadNo" class="big green"><b>បន្តប្រណាំង</b><i>Keep racing</i></button>
+      <button id="btnReloadYes" class="big yellow"><b>ផ្ទុកឡើងវិញ</b><i>Reload</i></button>
+    </div>
   </div>
 </div>
 
@@ -255,6 +268,6 @@
 
 <script src="lib/three.min.js"></script>
 <script src="lib/peerjs.min.js"></script>
-<script src="js/game.js?v=74"></script>
+<script src="js/game.js?v=76"></script>
 </body>
 </html>

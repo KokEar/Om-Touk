@@ -2242,6 +2242,7 @@ $('btnRmYes').onclick = rematchAccept;
 $('btnRmNo').onclick = () => { $('rematch').classList.add('hidden'); NET.rmAsked = false; netSend({ t: 'rematch-no' }); };
 $('btnResMenu').onclick = toMenu;
 $('btnResume').onclick = togglePause;
+$('btnPauseAgain').onclick = () => { if (G.paused) togglePause(); startRace(); };   // restart the race from the pause menu
 $('btnPauseMenu').onclick = () => { if (G.paused) togglePause(); toMenu(); };
 $('btnPause').onclick = togglePause;
 $('btnMute').onclick = toggleMute;
@@ -2251,9 +2252,12 @@ document.addEventListener('click', e => { const b = e.target.closest && e.target
 const inRace = () => G.state === 'countdown' || G.state === 'race' || G.state === 'finishing';
 document.addEventListener('keydown', e => {
   const k = (e.key || '').toLowerCase();
-  if (inRace() && (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && k === 'r'))) { e.preventDefault(); e.stopPropagation(); showBanner('មិនអាចផ្ទុកទំព័រឡើងវិញបានទេ', 'CAN\'T RELOAD DURING A RACE'); }
+  if (inRace() && (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && k === 'r'))) { e.preventDefault(); e.stopPropagation(); $('reloadAsk').classList.remove('hidden'); }   // our own styled confirm instead of the browser's plain one
 }, true);
-window.addEventListener('beforeunload', e => { if (inRace() && !G.demo) { e.preventDefault(); e.returnValue = ''; } });
+let reloadOk = false;
+$('btnReloadNo').onclick = () => $('reloadAsk').classList.add('hidden');
+$('btnReloadYes').onclick = () => { reloadOk = true; location.reload(); };
+window.addEventListener('beforeunload', e => { if (inRace() && !G.demo && !reloadOk) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('keydown', e => { if (e.code === 'Tab' && (G.state === 'race' || G.state === 'countdown' || G.state === 'finishing')) e.preventDefault(); });
 document.addEventListener('pointerdown', () => { if (SFX.ctx && SFX.ctx.state === 'suspended' && !G.paused) SFX.ctx.resume(); }, { once: false });
 

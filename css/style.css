@@ -166,6 +166,8 @@ kbd{display:inline-block;min-width:24px;padding:2px 6px;margin:1px;border-radius
 #onlineBox .joinrow input{padding:8px 6px}
 button.big.green{background:linear-gradient(180deg,#2fc76a,#12803a);box-shadow:0 5px 0 #0a5324,0 10px 24px rgba(0,0,0,.4)}
 button.big.green:active{box-shadow:0 1px 0 #0a5324}
+button.big.yellow{background:linear-gradient(180deg,#ffd84a,#e0a30f);color:#3a2400;box-shadow:0 5px 0 #8a5d00,0 10px 24px rgba(0,0,0,.4)}
+button.big.yellow:active{box-shadow:0 1px 0 #8a5d00}
 .olstatus:empty{display:none}
 #onlineBox{margin-bottom:0}
 .olstatus{margin-top:6px;min-height:0;line-height:1.3}
