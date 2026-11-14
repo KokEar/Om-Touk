@@ -1525,14 +1525,14 @@ function makeOar(poleCol, bladeCol) {
   return g;
 }
 const L_SHAFT = OAR_L;
-function poseRower(r, u, mode, T) {
+function poseRower(r, u, mode, T, spd) {
   // The blade tip is driven along a path (in the water on the drive, lifted and swung forward on the
   // recovery); the shaft then runs from that tip up through the hands, so the paddle pivots in the water
   // instead of swinging about the grip like a pendulum.
   let tx, ty, out, lift = 0;
   if (mode === 1) {
-    if (u < 0.5) { const k = u / 0.5; tx = lerp(0.95, -0.75, smooth(k)); ty = -0.12; out = 0.6; }
-    else { const k = (u - 0.5) / 0.5, a = Math.sin(PI * k); tx = lerp(-0.75, 0.95, smooth(k)); ty = -0.12 + 0.85 * a; out = 0.6 + 0.45 * a; lift = a; }
+    if (u < 0.5) { const k = u / 0.5; tx = lerp(0.95, -0.75, smooth(k)); ty = -0.12 - 0.9 * (spd || 0); out = 0.6; }   // blade digs deeper the faster the boat goes
+    else { const k = (u - 0.5) / 0.5, a = Math.sin(PI * k); tx = lerp(-0.75, 0.95, smooth(k)); ty = -0.12 - 0.9 * (spd || 0) + (0.85 + 0.9 * (spd || 0)) * a; out = 0.6 + 0.45 * a; lift = a; }
   } else { tx = 0.5; ty = 0.5 + 0.04 * Math.sin(T * 2 + r.sx); out = 1.0; }
   const q = clamp((tx + 0.75) / 1.7, 0, 1);
   const lean = -0.28 + 0.46 * (1 - q);
@@ -2056,7 +2056,7 @@ function updateVisuals(dt, wall) {
         const m0 = (base + 0.25 + (G.state === 'menu' ? r.off * 0.15 : 0)) % 2, m = m0 < 0 ? m0 + 2 : m0;
         { const t = (m - 0.5) / 1.5; u = m < 0.5 ? m : 0.5 + 0.5 * (0.3 * t + 0.7 * t * t * t); }   // pull at normal speed, then the oar keeps moving: slow lift that steadily speeds up into the forward swing, landing with couples 1-10
       }
-      const o = poseRower(r, u, mode, tw);
+      const o = poseRower(r, u, mode, tw, Math.pow(clamp((sq - 0.6) / 0.4, 0, 1), 1.5) * (r.i >= 3 ? 1.4 : 0.5));   // extra dip only at high speed (above 60% of top speed); couples 4-18 dip 40% deeper, couples 1-3 half as deep
       r.last = u;
       // paddle splash when the blade enters the water during drive
       if (mode === 1 && G.state !== 'menu' && b.v > 6 && u > 0.02 && u < 0.07 && rnd() < 0.35 && o.tipY < 0.2) {
