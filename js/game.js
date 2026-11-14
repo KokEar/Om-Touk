@@ -1004,13 +1004,13 @@ function buildCourse() {
 /* ------------------------------------------------------------------ */
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
-const BOW_RAKE = 0.5, BOW_RISE = 0.7;   // the bow stem leans forward and the sheer sweeps up to a pointed beak
+const BOW_RAKE = 0.6, BOW_RISE = 0.5;   // the bow stem leans forward and the sheer sweeps up to a pointed beak
 const sheerTop = u => u < 0 ? 0.82 + 0.75 * Math.pow(-u, 4.5) : 0.82 + BOW_RISE * Math.pow(u, 4);   // stern (u<0) rises; bow rises more, into the beak
 function hullGeometry() {
   const N = 72, Mm = 14, pos = [], uv = [], idx = [];
   for (let i = 0; i <= N; i++) {
     const u = -1 + 2 * i / N, au = Math.abs(u), x = u * HL;
-    const w = 0.12 + 0.88 * Math.pow(1 - Math.pow(au, 3.0), 0.7) + (u > 0 ? 0.22 * Math.pow(u, 3) : 0);   // blunter, rounder bow tip
+    const w = u > 0 ? 0.17 + 0.83 * Math.pow(1 - Math.pow(u, 2.4), 0.85) : 0.12 + 0.88 * Math.pow(1 - Math.pow(au, 3.0), 0.7);   // bow keeps a broad, flat-faced scooped end that sweeps up like a real racing boat; stern stays blunt
     const top = sheerTop(u);
     const d = 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
     for (let j = 0; j <= Mm; j++) {
