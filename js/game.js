@@ -1437,7 +1437,7 @@ function makeBoat(si) {
     // hands work exactly like the rowers' (couples 1-18): shoulders at +-0.28 either side, both fists on the shaft (top fist at the grip, second 0.55 down), grip rides with the shoulders and rises 0.1 on the lift
     const shX = SX - 1.3 * sl, shY = SY + 1.3 * cl;
     const G = sV[0].set(shX + 0.34, shY - 0.35 * (1 - stAmp) - 0.08 + 0.1 * lift * stAmp, 0.65);
-    sdir.set(-0.45, -0.8, 0.5).normalize();
+    sdir.set(-0.3, -0.92, 0.45).normalize();   // waiting: steeper, so the blade rests down in the water (tip about 0.5 below the surface)
     const rest = sV[3].copy(G).addScaledVector(sdir, 2.4);   // resting blade position before the race
     const tip = sV[1].set(SX + tx, ty, 1.0 + out).lerp(rest, 1 - stAmp);
     sdir.subVectors(tip, G); { const dl = sdir.length(); sdir.multiplyScalar(1 / dl); if (dl > 2.4) tip.copy(G).addScaledVector(sdir, 2.4); }
@@ -2072,7 +2072,8 @@ function updateVisuals(dt, wall) {
     b.cap.position.y = 0.62 + b.liftS * 0.04;
     b.apsara.update(ph, b.liftS, dt);
     // steersman sweeps the steering oar
-    b.steerUpdate(base, G.state === 'race' || G.state === 'finishing' || G.state === 'results');
+    // steersman: one full stroke for every two strokes of couples 14-18 (twice their period), locked to the crew clock; the +0.875 phase offset keeps his oar clear of couples 17-18 (checked: closest approach 0.5 vs 0.13 before)
+    b.steerUpdate(base / 2 + 0.875, G.state === 'race' || G.state === 'finishing' || G.state === 'results');
     // naga head bob
     b.head.rotation.z = -0.28 + Math.sin(tw * 2.2 + b.id) * 0.04 + sq * 0.05;
     // wake
