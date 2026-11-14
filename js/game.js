@@ -760,7 +760,18 @@ function buildShore() {
   place(makeStupa(), -62, -100, 1.1, 8);
   place(makeStupa(), 130, -104, 1.0, 8);
   place(makePavilion(), 108, -66, 1.0, 7);
-  place(makeWatOunalom(), BANDS[0], -92, 1.1, 44);   // Wat Ounalom, straight behind the Band 1 gate
+  place(makeWatOunalom(), BANDS[0], -135, 1.1, 44);   // Wat Ounalom, straight behind the Band 1 gate
+  // three little houses in front of Wat Ounalom, to its left
+  const makeHouse = (wall, roof, h) => {
+    const g = new THREE.Group();
+    box(g, 9, h, 8, 0, h / 2, 0, M(wall));
+    mesh(GEO.cone4, M(roof), g, 0, h, 0, 7.4, 4.2, 6.6);                       // hipped tiled roof
+    box(g, 2.0, 3.2, 0.3, 0, 1.6, 4.1, M(0x6b3f22));                            // door
+    for (const s of [-1, 1]) box(g, 1.8, 1.6, 0.3, s * 2.9, h * 0.55, 4.1, M(0x5b6a72));   // windows
+    box(g, 9.6, 0.4, 8.6, 0, 0.2, 0, M(0xb9b09c));                              // plinth
+    return g;
+  };
+  [[BANDS[0] - 52, -111, 0xf2d98a, 0xb5452f, 6.5], [BANDS[0] - 66, -113, 0xc9dcc0, 0x8c3b2a, 7.5], [BANDS[0] - 80, -111, 0xe7c4c4, 0xa04a2c, 6]].forEach(([x, z, w, r, h]) => place(makeHouse(w, r, h), x, z, 1.0, 5));
   place(makePavilion(), 372, -66, 1.0, 7);
   place(makeStupa(), 420, -102, 1.2, 8);
   place(makePavilion(), 478, -68, 1.0, 7);
