@@ -2252,11 +2252,13 @@ document.addEventListener('pointerdown', () => { if (SFX.ctx && SFX.ctx.state ==
 const MAXB = 10;
 const hex6 = n => '#' + n.toString(16).padStart(6, '0');
 const clean = v => String(v == null ? '' : v).replace(/[^\p{L}\p{M}\p{N} _-]/gu, '').trim().slice(0, 16);   // names reach innerHTML (HUD) → letters/digits only
+const WOOD = 0xa9794a;   // default hull colour when the hull tick is off
 const col = v => Number.isInteger(v) && v >= 0 && v <= 0xffffff ? v : 0x888888;
 const strHash = t => { let h = 0; for (let i = 0; i < t.length; i += 97) h = (h * 31 + t.charCodeAt(i)) | 0; return h + ':' + t.length; };
 const keyOf = s => s.hull + '-' + s.dark + '-' + s.shirts[0] + '-' + s.en + '-' + (s.num || '') + '-' + (s.shirt != null ? s.shirt : '') + '-' + (s.oar != null ? s.oar : '') + '-' + (s.pole != null ? s.pole : '') + '-' + (s.skin ? strHash(s.skin) : '') + '-' + s.style + '-' + (s.hull2 != null ? s.hull2 : '') + '-' + (s.stripes || []).join(',') + '/' + (s.stripeSz || []).join(',') + '-' + (s.stripeW == null ? 1 : s.stripeW) + '-' + (s.centre != null ? s.centre : '') + '-' + (s.bow ? strHash(s.bow) : '');
 function mk(o) {   // build a scheme from stored / received data (never trust it)
-  o = o || {}; const sh = col(o.sh), en = clean(o.en) || 'Boat';
+  o = o || {}; if (o.c && o.hull === 0xffffff) { o = Object.assign({}, o, { hull: WOOD, dark: shade(WOOD, 0.55) }); }   // older boats saved with the hull off (white) → wood
+ const sh = col(o.sh), en = clean(o.en) || 'Boat';
   return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, hull2: o.h2 == null ? null : col(o.h2), stripes: [0, 1, 2, 3].map(i => Array.isArray(o.zs) && o.zs[i] != null ? col(o.zs[i]) : null), stripeSz: [0, 1, 2, 3].map(i => Array.isArray(o.zz) && Number.isInteger(o.zz[i]) ? clamp(o.zz[i], 1, 6) : 3), centre: o.zc == null ? null : col(o.zc), stripeW: Number.isInteger(o.zw) ? clamp(o.zw, 0, 2) : 1, style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
     num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3),
     shirt: o.sc == null ? null : col(o.sc), oar: o.oc == null ? null : col(o.oc), pole: o.pc == null ? null : col(o.pc),
@@ -2377,7 +2379,7 @@ const CBS = [['cbZebraOn', 'cbStripe', 0xffffff, 'cbSz0'], ['cbMix2On', 'cbStrip
 const cbStripes = () => CBS.map(r => $(r[0]).checked ? parseInt($(r[1]).value.slice(1), 16) : null);   // up to 4 zebra colours
 const cbSizes = () => CBS.map(r => +$(r[3]).value);
 const cbCentreVal = () => $('cbCenterOn').checked ? parseInt($('cbCenter').value.slice(1), 16) : null;
-const cbHullVal = () => $('cbHullOn').checked ? parseInt($('cbHull').value.slice(1), 16) : 0xffffff;   // hull colour unticked → white
+const cbHullVal = () => $('cbHullOn').checked ? parseInt($('cbHull').value.slice(1), 16) : WOOD;   // hull colour unticked → natural wood
 function cbPreview() {
   const hull = cbHullVal(), sh = parseInt($('cbCrew').value.slice(1), 16);
   $('cbPrev').innerHTML = boatSvg(mk({ hull, zs: cbStripes(), zz: cbSizes(), zc: cbCentreVal(), zw: +$('cbStripeW').value, h2: $('cbMixOn').checked ? parseInt($('cbHull2').value.slice(1), 16) : null, dark: shade(hull, 0.55), sh, img: CB.skin, bw: CB.bow, n: $('cbNum').value, sc: parseInt($('cbShirt').value.slice(1), 16), oc: parseInt($('cbOar').value.slice(1), 16), pc: parseInt($('cbPole').value.slice(1), 16) }), 'cb');
@@ -2442,7 +2444,7 @@ function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new o
   $('cbStripeW').value = s ? s.stripeW : 1; $('cbCenterOn').checked = !!(s && s.centre != null); $('cbCenter').value = hex6(s && s.centre != null ? s.centre : 0xffd23f);
   $('cbMixOn').checked = !!(s && s.hull2 != null); $('cbHull2').value = hex6(s && s.hull2 != null ? s.hull2 : 0xffd23f);
   setDance(s && s.style < 4 ? s.style : 0);
-  $('cbHullOn').checked = !s || s.hull !== 0xffffff; $('cbHull').value = s && s.hull !== 0xffffff ? hex6(s.hull) : '#c8102e'; $('cbCrew').value = s ? hex6(s.shirts[0]) : '#2f78e0';
+  $('cbHullOn').checked = !s || s.hull !== WOOD; $('cbHull').value = s && s.hull !== WOOD ? hex6(s.hull) : '#c8102e'; $('cbCrew').value = s ? hex6(s.shirts[0]) : '#2f78e0';
   $('cbTitle').textContent = s ? 'កែទូក · Edit boat' : 'ទូកផ្ទាល់ខ្លួន · Custom boat';
   $('btnCbSave').querySelector('i').textContent = s ? 'SAVE CHANGES' : 'SAVE';
   cbPreview(); $('customBoat').classList.remove('hidden'); $('cbName').focus();
