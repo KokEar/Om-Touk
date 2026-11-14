@@ -301,7 +301,7 @@ function paintHull(c, W, HH, hull, dark, hull2, stripes, sw, centre, zsz) {
     curl(x + 62, cy + 18, 14, 1); curl(x - 62, cy + 18, 14, -1);
   };
   c.save(); c.translate(0, HH * 0.275); c.scale(K, K);
-  const eyeX = W * 0.8 / K, rdX = W * 0.5 / K;
+  const eyeX = W * 0.09 / K, rdX = W * 0.5 / K;
   for (let x = 130 / K; x < W / K; x += 270 / K) { if (Math.abs(x - rdX) < 150 || Math.abs(x - eyeX) < 130) continue; flourish(x); }
   // wreath roundel
   c.save(); c.translate(rdX, cy + 6);
@@ -313,7 +313,7 @@ function paintHull(c, W, HH, hull, dark, hull2, stripes, sw, centre, zsz) {
   c.fillStyle = GOLD; c.beginPath(); c.arc(0, 14, 5, 0, TAU); c.fill();
   c.restore();
   // eye with a gold curled brow, facing the bow
-  c.save(); c.translate(eyeX, cy + 6);
+  c.save(); c.translate(eyeX, cy + 6); c.rotate(0.3); c.scale(-1, 1);   // canvas x = 0 is the bow (texture is mirrored), so the eye sits at 0.2W and is drawn flipped to look forward
   leaf(14, -12, 60, 11, -0.35); curl(-30, 6, 12, -1);
   c.fillStyle = INK; c.beginPath(); c.ellipse(0, 0, 36, 24, 0, 0, TAU); c.fill();
   c.fillStyle = GOLD; c.beginPath(); c.ellipse(0, 0, 32, 20, 0, 0, TAU); c.fill();
@@ -971,7 +971,8 @@ function buildCourse() {
         const shM = M(0xe0283f);
         const tor = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.15, 0.52, 14, 2), shM); tor.scale.set(0.8, 1, 1.25); tor.position.set(0, 0.46, 0); pp.add(tor);   // rounded torso, broader at the shoulders
         mesh(GEO.cyl, skinM, pp, 0, 0.74, 0, 0.05, 0.1, 0.05);   // neck
-        for (const z of [-1, 1]) mesh(GEO.sph, shM, pp, 0, 0.67, z * 0.23, 0.14, 0.14, 0.14);   // round shoulders
+        { const yoke = mesh(GEO.cyl, shM, pp, 0, 0.66, 0, 0.085, 0.46, 0.085); yoke.rotation.x = PI / 2; }   // flat shoulder line (no balls), same thickness as the sleeves
+        for (const z of [-1, 1]) mesh(GEO.sph, shM, pp, 0, 0.66, z * 0.225, 0.085, 0.085, 0.085);   // small rounded caps matching the sleeve
         mesh(GEO.sph, skinM, pp, 0, 0.88, 0, 0.16, 0.17, 0.15);   // round head
         mesh(GEO.sph, hairM, pp, -0.015, 0.93, 0, 0.17, 0.15, 0.16);   // hair cap
         for (const lz of [-0.1, 0.1]) {   // legs + feet (feet point toward the drum)
@@ -2105,9 +2106,16 @@ function updateCamera(dt, wall) {
   gates.forEach(g => { const far = Math.abs(camera.position.x - g.position.x) > 24; if (g.userData.near) g.userData.near.visible = far; if (g.userData.top) g.userData.top.visible = far; });
   { const fg = gates.find(g => g.userData.drums); if (fg) {   // finish-boat drummers: one strike when THEIR side's boat arrives, otherwise rest
     fg.userData.drums.forEach(d => {
-      d.hit = Math.max(0, d.hit - dt * 2.2);
-      const t = 1 - d.hit, sq = d.hit > 0 ? Math.max(0, 1 - Math.abs(t - 0.3) / 0.3) : 0, up = -1.1, down = 0.1;
-      d.dr.scale.set(1 + 0.06 * sq, 1 - 0.1 * sq, 1 + 0.06 * sq); d.pp.rotation.z = 0.12 * sq; d.pp.position.y = 0.55 - 0.05 * sq;
+      d.hit = Math.max(0, d.hit - dt * 1.7);
+      const t = 1 - d.hit, up = -1.1, down = 0.1, TI = 0.16, TE = 0.62;   // strike (ease-in, accelerating) -> impact -> rebound (ease-out) -> settle
+      let sq = 0, imp = 0;
+      if (d.hit > 0) {
+        if (t < TI) { const u = t / TI; sq = u * u * u; }                       // fast accelerating swing down
+        else if (t < TE) { const u = (t - TI) / (TE - TI); sq = Math.pow(1 - u, 2.2); }   // springy rebound back up
+        if (t >= TI) imp = Math.exp(-(t - TI) * 11) * Math.cos((t - TI) * 30) * 0.5 + Math.exp(-(t - TI) * 11) * 0.5;   // drum skin vibrates after impact
+      }
+      const lean = sq * sq * (3 - 2 * sq);   // smoothstep for the body
+      d.dr.scale.set(1 + 0.05 * imp, 1 - 0.09 * imp, 1 + 0.05 * imp); d.pp.rotation.z = 0.1 * lean; d.pp.position.y = 0.55 - 0.04 * lean;
       d.arms.forEach((a, k) => { a.rotation.z = k ? up + (down - up) * sq : 1.3; });   // arms[1] (z +0.22) is the drummer's right hand on screen (scene is mirrored): it strikes; the other hangs down at rest
     }); } }
   camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-dt * 3)); camera.updateProjectionMatrix();
