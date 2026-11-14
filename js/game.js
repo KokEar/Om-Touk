@@ -939,9 +939,6 @@ function buildCourse() {
         hl.scale.set(0.34, 0.42, 0.5); sb.add(hl);
         const dk = new THREE.Mesh(bandHull, new THREE.MeshLambertMaterial({ color: 0x7d0a1c, side: THREE.DoubleSide }));
         dk.scale.set(0.335, 0.4, 0.46); dk.position.y = 0.03; sb.add(dk);
-        for (const sx of [-1, 1]) {   // gilded prow and stern posts
-          const f = mesh(GEO.cone, GOLD, sb, sx * (HL * 0.34 + 0.02), 0.95, 0, 0.09, 0.4, 0.09); f.rotation.z = -sx * 0.5;
-        }
         cyl(sb, 0.05, 2.6, 0, 1.6, 0, M(0xe9c477));
         const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagClone());
         fl.material.map = rf; fl.position.set(0.05, 2.5, 0); sb.add(fl);
@@ -961,9 +958,6 @@ function buildCourse() {
         const dk = new THREE.Mesh(bandHull, new THREE.MeshLambertMaterial({ color: 0x7d0a1c, side: THREE.DoubleSide }));
         dk.scale.set(0.335, 0.57, 0.56); dk.position.y = 0.03; sb.add(dk);
         box(sb, 2.2, 0.06, 0.8, -0.1, 0.1, 0, M(0xa9774a));   // floor inside the hull: the drummer stands on it, below the gunwale
-        for (const sx of [-1, 1]) {
-          const f = mesh(GEO.cone, GOLD, sb, sx * (HL * 0.34 + 0.02), 1.1, 0, 0.09, 0.4, 0.09); f.rotation.z = -sx * 0.5;
-        }
         cyl(sb, 0.05, 2.6, 1.6, 1.8, 0, stickM);
         const fl = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.85, 6, 1).translate(0.65, 0, 0), flagClone());
         fl.material.map = rf; fl.position.set(1.65, 2.6, 0); sb.add(fl);
