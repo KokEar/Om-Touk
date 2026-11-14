@@ -1392,7 +1392,7 @@ function makeBoat(si) {
   const capT = null, capArms = [];
 
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
-  const SX = -8.5, SY = 1.0;   // stands on a wooden floor inside the stern, feet on the wood, hull around his legs
+  const SX = -8.5, SY = 0.8;   // stands on a wooden floor inside the stern, feet on the wood, hull around his legs
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
   box(body, 0.7, 0.06, 0.74, SX, SY - 0.03, 0, wood);   // wooden floor he stands on
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x1a1a1a), steer, 0.06, 0.03, z * 0.1, 0.14, 0.04, 0.075);   // feet
@@ -1425,11 +1425,13 @@ function makeBoat(si) {
   const _hd = new THREE.Vector3();
   const stHandAt = (g, el, wr) => { _hd.subVectors(wr, el).normalize(); g.position.copy(wr).addScaledVector(_hd, -0.05); g.quaternion.setFromUnitVectors(UPV, _hd); };
   const sV = [0, 1, 2, 3, 4].map(() => new THREE.Vector3()), sdir = new THREE.Vector3();
-  const steerUpdate = (t) => {
+  let stAmp = 0;
+  const steerUpdate = (t, pull) => {
+    stAmp += ((pull ? 1 : 0) - stAmp) * 0.08;   // pull up/down eases in once the race starts, back to rest before
     const sweep = Math.sin(t);
     // oar is held outboard of the hull so it never passes through the gunwale
     sdir.set(-0.45 + 0.15 * sweep, -0.8, 0.5).normalize();   // same slope and outboard lean as the crew paddles
-    const G = sV[0].set(SX + 0.2, SY + 0.85, 0.5);
+    const G = sV[0].set(SX + 0.2, SY + 1.35 + 0.35 * stAmp * Math.sin(t * 2) - 0.35 * (1 - stAmp), 0.5);
     const tip = sV[1].copy(G).addScaledVector(sdir, 2.4), hnd = sV[2].copy(G).addScaledVector(sdir, -0.6);
     aimV(oarShaft, hnd, tip);
     oarBlade.position.copy(tip).addScaledVector(sdir, -0.2); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
@@ -2010,7 +2012,7 @@ function updateVisuals(dt, wall) {
     b.cap.position.y = 0.62 + b.liftS * 0.04;
     b.apsara.update(ph, b.liftS, dt);
     // steersman sweeps the steering oar
-    b.steerUpdate(tw * 1.4 + b.id);
+    b.steerUpdate(tw * 1.4 + b.id, G.state === 'race' || G.state === 'finishing' || G.state === 'results');
     // naga head bob
     b.head.rotation.z = -0.28 + Math.sin(tw * 2.2 + b.id) * 0.04 + sq * 0.05;
     // wake
