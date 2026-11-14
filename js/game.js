@@ -1009,23 +1009,29 @@ function buildCourse() {
 /* ------------------------------------------------------------------ */
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
-const sheerTop = u => 0.82 + (u < 0 ? 0.75 : 0.3) * Math.pow(Math.abs(u), 4.5);   // stern (u<0) rises a bit higher than the bow
+const BOW_RAKE = 0.5, BOW_RISE = 0.7;   // the bow stem leans forward and the sheer sweeps up to a pointed beak
+const sheerTop = u => u < 0 ? 0.82 + 0.75 * Math.pow(-u, 4.5) : 0.82 + BOW_RISE * Math.pow(u, 4);   // stern (u<0) rises; bow rises more, into the beak
 function hullGeometry() {
   const N = 72, Mm = 14, pos = [], uv = [], idx = [];
   for (let i = 0; i <= N; i++) {
     const u = -1 + 2 * i / N, au = Math.abs(u), x = u * HL;
-    const w = 0.12 + 0.88 * Math.pow(1 - Math.pow(au, 3.0), 0.7);
+    const w = 0.12 + 0.88 * Math.pow(1 - Math.pow(au, 3.0), 0.7) + (u > 0 ? 0.22 * Math.pow(u, 3) : 0);   // blunter, rounder bow tip
     const top = sheerTop(u);
     const d = 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
-      pos.push(x, top - d * Math.sin(th), -w * Math.cos(th));
+      pos.push(x + (u > 0 ? BOW_RAKE * Math.pow(u, 3) * (1 - Math.sin(th)) : 0), top - d * Math.sin(th), -w * Math.cos(th));   // upper edge pushed forward = raked bow, keel stays back
       uv.push(i / N, j / Mm);
     }
   }
   for (let i = 0; i < N; i++) for (let j = 0; j < Mm; j++) {
     const a = i * (Mm + 1) + j, b = a + 1, c = a + Mm + 1, d = c + 1;
     idx.push(a, b, c, b, d, c);
+  }
+  for (const i of [0, N]) {   // close the open bow and stern ends with a fan from the middle of the sheer line
+    const base = i * (Mm + 1), mid = pos.length / 3;
+    pos.push(pos[base * 3], pos[base * 3 + 1], 0); uv.push(i / N, 0.5);
+    for (let j = 0; j < Mm; j++) idx.push(mid, base + j, base + j + 1);
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -1305,10 +1311,8 @@ function makeBoat(si) {
   }
 
   const anim = root.userData.anim = { flags: [], tassels: [] };   // stern flag + tassels flutter in updateVisuals
-  // bow: gilded prow with a team flag; stern: upturned tail with red / black tassels (as on real racing boats)
+  // bow: plain (prow removed); stern flag; stern: upturned tail with red / black tassels (as on real racing boats)
   {
-    const f = mesh(GEO.cone, GOLD, body, HL + 0.05, 1.27, 0, 0.17, 0.7, 0.17); f.rotation.z = -0.5;
-    mesh(GEO.sph, GOLD, body, HL, 1.02, 0, 0.14, 0.14, 0.14);
     // flag pole + flag hang off a pivot at the pole's foot, raked back 50 degrees
     const flagRig = new THREE.Group(); flagRig.position.set(-HL + 0.6, 1.2, 0); flagRig.rotation.z = 50 * PI / 180; body.add(flagRig);
     mesh(GEO.cyl, M(0xe9c477), flagRig, 0, 0.9, 0, 0.035, 1.8, 0.035);                                   // flag pole
@@ -1333,7 +1337,7 @@ function makeBoat(si) {
     mesh(GEO.sph, GOLD, body, -HL, 1.47, 0, 0.14, 0.14, 0.14);
     for (const ex of [-HL - 0.12, HL + 0.12]) [[0xd0202a, -0.17, 0.75], [0x111111, 0, 0.85], [0xf0861c, 0.17, 0.7]].forEach(([c, z, l]) => {
       const tm = M(c);
-      const tg = new THREE.Group(); tg.position.set(ex, ex < 0 ? 1.42 : 0.97, z); body.add(tg);   // pivot at the top so the tassel can swing
+      const tg = new THREE.Group(); tg.position.set(ex < 0 ? ex : HL + BOW_RAKE - 0.1, ex < 0 ? 1.42 : 0.82 + BOW_RISE - 0.1, z); body.add(tg);   // pivot at the top so the tassel can swing
       mesh(GEO.cyl, tm, tg, 0, -l / 2, 0, 0.06, l, 0.06);
       mesh(GEO.sph, tm, tg, 0, 0, 0, 0.09, 0.09, 0.09);
       anim.tassels.push({ g: tg, ph: z * 9 + ex * 0.3, k: ex < 0 ? 1.2 : 0.8 });
