@@ -1341,7 +1341,7 @@ function makeBoat(si) {
 
   // thwarts
   const wood = M(0xa9794a);
-  const rowers = [], pairs = 16;
+  const rowers = [], pairs = 18;
   const YEL = s.shirt != null ? s.shirt : 0xf7c71c, shirtMats = [M(YEL), M(YEL)], teamM = shirtMats[0];   // one crew colour: shirts, sleeves and headbands all use the boat's Shirt colour (yellow by default); the flag has its own colour
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
@@ -1349,19 +1349,19 @@ function makeBoat(si) {
   const hairG = new THREE.SphereGeometry(0.22, 14, 8, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 10, 8);
   const armG = new THREE.CylinderGeometry(0.07, 0.06, 1, 6), shaftG = new THREE.CylinderGeometry(0.035, 0.035, 1, 6), bladeG = new THREE.BoxGeometry(0.05, 0.6, 0.3);
   const bladeM = M(s.oar != null ? s.oar : 0xf3f0e6), shaftM = M(s.pole != null ? s.pole : 0xe9c477);   // two oar colours: shaft (pole) and tip (blade); defaults: wooden shaft, pale blade
-  const L_SHAFT = 1.7;
+  const oarTpl = makeOar(s.pole != null ? s.pole : OAR_POLE, s.oar != null ? s.oar : OAR_BLADE);
   for (let i = 0; i < pairs; i++) {
-    const sx = (6.76 - i * 13.52 / (pairs - 1)) * HL / 10.5;
+    const sx = (7.56 - i * 13.52 / 15) * HL / 10.5;
     // keep every rower inside the hull: narrow the seat spacing where the hull narrows
     const hu = Math.abs(sx / HL), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
     const htop = sheerTop(sx / HL), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
     const sn = clamp((htop - 0.27) / hd, 0, 0.98), halfW = hw * Math.sqrt(1 - sn * sn);
     const seatZ = clamp(halfW - 0.36, 0.26, 0.52), hullP = { hw, htop, hd };
-    box(body, 0.34, 0.07, seatZ * 2 + 0.3, sx - 0.05, 0.22, 0, wood);
+    if (i < 3) box(body, 0.34, 0.07, seatZ * 2 + 0.3, sx - 0.05, 0.22, 0, wood);
     for (const sd of [-1, 1]) {
       const standing = i >= 3, by = standing ? 0.78 : 0.27;   // front 3 couples sit; the other 11 stand and row
       const R = new THREE.Group(); R.position.set(sx, by, sd * seatZ); body.add(R);
-      if (standing) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.085, by + 0.11, 8), M(0x2b2b3a)); leg.position.set(0.02, 0.17 - (by + 0.11) / 2, 0); R.add(leg); }
+      if (standing) { const legBot = Math.max(0.3, hullP.htop - hullP.hd + 0.15) - by, legL = 0.17 - legBot; const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.085, legL, 8), M(0x2b2b3a)); leg.position.set(0.02, 0.17 - legL / 2, 0); R.add(leg); }
       const shirt = shirtMats[i % 2];
       const t = new THREE.Mesh(torsoGeo, shirt); t.position.y = 0.5; R.add(t);
       const hip = new THREE.Mesh(shoulderG, shirt); hip.position.set(0.02, 0.17, 0); hip.scale.set(1.3, 0.9, 2.0); R.add(hip);   // seated hips
@@ -1378,10 +1378,7 @@ function makeBoat(si) {
       const band = new THREE.Mesh(bandG, teamM); band.position.set(0.02, 1.12, 0); band.scale.set(1.05, 1.05, 1.05); band.rotation.x = PI / 2; R.add(band);   // team headband
       const armGeo = makeArmGeo(YEL, skinM.color.getHex());
       const armA = new THREE.Mesh(armGeo, ARM_MAT), armB = new THREE.Mesh(armGeo, ARM_MAT);
-      const shaft = new THREE.Mesh(shaftG, shaftM); shaft.scale.y = L_SHAFT;
-      const blade = new THREE.Mesh(bladeG, bladeM); blade.position.y = -0.5;
-      // blade is placed in the un-scaled shaft space → compensate for shaft scale
-      blade.position.y = -0.5 + 0.2 / L_SHAFT; blade.scale.set(1, 1 / L_SHAFT, 1); shaft.add(blade);
+      const shaft = oarTpl.clone();
       body.add(armA, armB, shaft);
       rowers.push({ by, hullP, R, side: sd, sx, sz: sd * seatZ, armA, armB, shaft, off: (rnd() - 0.5) * 0.9, i });
     }
@@ -1410,8 +1407,7 @@ function makeBoat(si) {
   const stBand = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.025, 6, 18), GOLD); stBand.position.set(0, 1.64, 0); stBand.rotation.x = PI / 2; steer.add(stBand);   // headband at the hairline
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x111111), steer, 0.2, 1.57, z * 0.075, 0.03, 0.03, 0.03);   // eyes look toward the bow
   mesh(GEO.sph, skins[2], steer, 0.22, 1.5, 0, 0.04, 0.04, 0.04);                                         // nose
-  const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 6), M(s.pole != null ? s.pole : 0xe9c477)); body.add(oarShaft);
-  const oarBlade = mesh(GEO.box, M(s.oar != null ? s.oar : 0xf3f0e6), body, 0, 0, 0, 0.05, 0.9, 0.3);   // blade is 30% of the 3 m oar (0.9 m)
+  const stOar = makeOar(s.pole != null ? s.pole : OAR_POLE, s.oar != null ? s.oar : OAR_BLADE); stOar.scale.setScalar(2.55 / OAR_L); body.add(stOar);   // same oar, 3 m long
   const stUpG = new THREE.CylinderGeometry(0.092, 0.074, 1, 20, 2), stForeG = new THREE.CylinderGeometry(0.06, 0.04, 1, 20, 2);
   const stJoint = new THREE.SphereGeometry(1, 18, 12);
   const stArms = [0, 1].map(() => [new THREE.Mesh(stUpG, stMat), new THREE.Mesh(stForeG, skins[2])]);   // sleeve + bare forearm
@@ -1423,6 +1419,8 @@ function makeBoat(si) {
     const fing = new THREE.Mesh(stJoint, skins[2]); fing.scale.set(0.058, 0.04, 0.07); fing.position.set(0.0, 0.1, 0.0); g.add(fing);   // curled fingers
     const thumb = new THREE.Mesh(stJoint, skins[2]); thumb.scale.set(0.022, 0.045, 0.022); thumb.position.set(0.04, 0.06, 0.03); thumb.rotation.z = -0.5; g.add(thumb);
     return g; });
+  stArms.forEach(p => p.forEach(m => m.visible = false)); stShoulders.forEach(m => m.visible = false); stElbows.forEach(m => m.visible = false); stPalms.forEach(g => g.visible = false);
+  const stArmGeo = makeArmGeo(YEL, skins[2].color.getHex()), stRA = new THREE.Mesh(stArmGeo, ARM_MAT), stRB = new THREE.Mesh(stArmGeo, ARM_MAT); body.add(stRA, stRB);   // same jointed arm mesh the rowers use
   const _hd = new THREE.Vector3();
   const stHandAt = (g, el, wr) => { _hd.subVectors(wr, el).normalize(); g.position.copy(wr).addScaledVector(_hd, -0.05); g.quaternion.setFromUnitVectors(UPV, _hd); };
   const sV = [0, 1, 2, 3, 4].map(() => new THREE.Vector3()), sdir = new THREE.Vector3();
@@ -1435,20 +1433,18 @@ function makeBoat(si) {
     let tx, ty, out, lift = 0;
     if (u < 0.5) { const k = u / 0.5; tx = lerp(0.95, -0.75, smooth(k)); ty = 0.15; out = 0.6; }
     else { const k = (u - 0.5) / 0.5, a = Math.sin(PI * k); tx = lerp(-0.75, 0.95, smooth(k)); ty = 0.15 + 0.85 * a; out = 0.6 + 0.45 * a; lift = a; }
-    const G = sV[0].set(SX + 0.2, SY + 1.35 + 0.1 * lift * stAmp - 0.35 * (1 - stAmp), 0.5);
+    const qs = clamp((tx + 0.75) / 1.7, 0, 1), lean = stAmp * (-0.08 + 0.2 * (1 - qs)), cl = Math.cos(lean), sl = Math.sin(lean);
+    // hands work exactly like the rowers' (couples 1-18): shoulders at +-0.28 either side, both fists on the shaft (top fist at the grip, second 0.55 down), grip rides with the shoulders and rises 0.1 on the lift
+    const shX = SX - 1.3 * sl, shY = SY + 1.3 * cl;
+    const G = sV[0].set(shX + 0.34, shY - 0.35 * (1 - stAmp) - 0.08 + 0.1 * lift * stAmp, 0.65);
     sdir.set(-0.45, -0.8, 0.5).normalize();
     const rest = sV[3].copy(G).addScaledVector(sdir, 2.4);   // resting blade position before the race
     const tip = sV[1].set(SX + tx, ty, 1.0 + out).lerp(rest, 1 - stAmp);
     sdir.subVectors(tip, G); { const dl = sdir.length(); sdir.multiplyScalar(1 / dl); if (dl > 2.4) tip.copy(G).addScaledVector(sdir, 2.4); }
-    const hnd = sV[2].copy(G).addScaledVector(sdir, -0.6), sweep = 0;
-    aimV(oarShaft, hnd, tip);
-    oarBlade.position.copy(tip).addScaledVector(sdir, -0.45); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
-    steer.rotation.y = 0.05 * sweep;
-    const shR = new THREE.Vector3(SX, SY + 1.3, 0.25), shL = new THREE.Vector3(SX, SY + 1.3, -0.25), el = new THREE.Vector3(), wr = new THREE.Vector3();
-    ik2(shR, G, 0.4, 0.4, new THREE.Vector3(-0.3, -1, 0.5), el, wr);           // right hand grips the steering oar at chest height; elbow bent naturally, hanging down and slightly out
-    aimV(stArms[0][0], shR, el); aimV(stArms[0][1], el, wr); stShoulders[0].position.copy(shR); stElbows[0].position.copy(el); stHandAt(stPalms[0], el, wr);
-    ik2(shL, sV[3].copy(G).addScaledVector(sdir, -0.4), 0.4, 0.4, new THREE.Vector3(-0.3, -0.6, -1), el, wr);   // left hand grips the oar higher up the shaft (two-handed hold)
-    aimV(stArms[1][0], shL, el); aimV(stArms[1][1], el, wr); stShoulders[1].position.copy(shL); stElbows[1].position.copy(el); stHandAt(stPalms[1], el, wr);
+    stOar.quaternion.setFromUnitVectors(DOWNV, sdir); stOar.position.copy(G).addScaledVector(sdir, 1.155);
+    steer.rotation.z = lean;
+    aim(stRA, shX, shY, -0.28, G.x, G.y, G.z);
+    aim(stRB, shX, shY, 0.28, G.x + sdir.x * 0.55, G.y + sdir.y * 0.55, G.z + sdir.z * 0.55);
   };
   steerUpdate(0);
   const steerArms = [];
@@ -1472,7 +1468,63 @@ function aim(m, ax, ay, az, bx, by, bz) {
   m.scale.set(1, len, 1);
   m.quaternion.setFromUnitVectors(UPV, _v.multiplyScalar(1 / len));
 }
-const L_SHAFT = 1.7;
+// Thai ceremonial oar, modelled on the reference drawing (all proportions are fractions of the length L):
+// long flat blade (48%) with rounded tip and gold lotus/diamond motifs with pink gems, gold band, flared neck,
+// slim shaft with gold rings and a rounded handle. Local +Y = handle end, -Y = blade tip (centred on the origin).
+const OAR_L = 1.8, OAR_POLE = 0x15110d, OAR_BLADE = 0xffffff;
+const _oarDecorGold = GOLD.clone(); _oarDecorGold.polygonOffset = true; _oarDecorGold.polygonOffsetFactor = -2; _oarDecorGold.polygonOffsetUnits = -2;
+const _oarGem = new THREE.MeshPhongMaterial({ color: 0xd9327a, shininess: 80, specular: 0xffc0d8, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
+let _oarGeo = null;
+function oarGeometry() {
+  if (_oarGeo) return _oarGeo;
+  const L = OAR_L, hw = 0.035 * L, th = 0.018 * L, tipY = -L / 2, bladeLen = 0.48 * L, rc = 0.02 * L;
+  // blade outline (x across, y along; tip at -L/2): rounded tip corners, slightly narrower at the base
+  const sh = new THREE.Shape();
+  const hb = 0.031 * L;
+  sh.moveTo(-hb, tipY + bladeLen); sh.lineTo(-hw, tipY + bladeLen * 0.8); sh.lineTo(-hw, tipY + rc);
+  sh.quadraticCurveTo(-hw, tipY, -hw + rc, tipY); sh.lineTo(hw - rc, tipY); sh.quadraticCurveTo(hw, tipY, hw, tipY + rc);
+  sh.lineTo(hw, tipY + bladeLen * 0.8); sh.lineTo(hb, tipY + bladeLen); sh.closePath();
+  const blade = new THREE.ExtrudeGeometry(sh, { depth: th, bevelEnabled: false }).translate(0, 0, -th / 2);
+  // gold motifs, built in blade space (x = u * hw, y = tipY + s * L), mirrored for the base cluster
+  const poly = pts => { const q = new THREE.Shape(); pts.forEach((v, i) => i ? q.lineTo(v[0] * hw * 0.94, tipY + v[1] * L) : q.moveTo(v[0] * hw * 0.94, tipY + v[1] * L)); q.closePath(); return q; };
+  const circ = (u, sv, r) => { const q = new THREE.Shape(); q.absarc(u * hw, tipY + sv * L, r * L, 0, TAU, false); return q; };
+  const golds = [], gems = [];
+  const cluster = (m) => {   // m(s) maps distance from the cluster's outer end to a position along the blade
+    const f = a => a.map(v => [v[0], m(v[1])]);
+    golds.push(poly(f([[-1, 0.012], [-0.55, 0], [0.55, 0], [1, 0.012], [1, 0.095], [0, 0.125], [-1, 0.095]])));      // lotus cap
+    golds.push(poly(f([[-1, 0.1], [-1, 0.2], [-0.15, 0.135]])), poly(f([[1, 0.1], [1, 0.2], [0.15, 0.135]])));      // side leaves meeting the X
+    golds.push(poly(f([[-0.18, 0.14], [0, 0.125], [0.18, 0.14], [0, 0.2]])));
+    gems.push(circ(0, m(0.055), 0.0165), circ(-0.85, m(0.15), 0.011), circ(0.85, m(0.15), 0.011));
+  };
+  cluster(sv => sv);                   // blade tip end
+  cluster(sv => 0.48 - sv);            // base end (mirrored)
+  const dm = poly([[0, 0.19], [1, 0.25], [0, 0.31], [-1, 0.25]]);       // centre diamond
+  golds.push(dm); gems.push(circ(0, 0.25, 0.0165));
+  const gGeo = new THREE.ShapeGeometry(golds), pGeo2 = new THREE.ShapeGeometry(gems, 10);
+  // shaft: flared neck narrowing to a slim round shaft, rounded handle end (t from the tip, 0..1)
+  const prof = [[0.525, 0.028], [0.55, 0.0215], [0.575, 0.0165], [0.61, 0.0145], [0.7, 0.0135], [0.985, 0.0135], [0.992, 0.0122], [0.997, 0.0095], [1.0, 0.005], [1.0, 0.0]]
+    .map(v => new THREE.Vector2(v[1] * L, tipY + v[0] * L));
+  const shaft = new THREE.LatheGeometry(prof, 14);
+  // gold rings: [t0, t1, radius]
+  const rings = [[0.48, 0.525, 0.032], [0.585, 0.625, 0.0185], [0.91, 0.93, 0.0165], [0.94, 0.955, 0.0165], [0.968, 0.99, 0.0165]]
+    .map(r => new THREE.CylinderGeometry(r[2] * L, r[2] * L, (r[1] - r[0]) * L, 14).translate(0, tipY + (r[0] + r[1]) / 2 * L, 0));
+  return (_oarGeo = { blade, gGeo, pGeo2, shaft, rings, th });
+}
+function makeOar(poleCol, bladeCol) {
+  const G = oarGeometry(), g = new THREE.Group(), inner = new THREE.Group(); g.add(inner);
+  inner.rotation.y = PI / 2;   // blade width runs along Z, thickness along X (as before)
+  inner.add(new THREE.Mesh(G.blade, M(bladeCol)));
+  for (const f of [1, -1]) {
+    const d = new THREE.Group(); d.position.z = f * (G.th / 2 + 0.002); if (f < 0) d.rotation.y = PI;
+    d.add(new THREE.Mesh(G.gGeo, _oarDecorGold));
+    const gm = new THREE.Mesh(G.pGeo2, _oarGem); gm.position.z = 0.001; d.add(gm);
+    inner.add(d);
+  }
+  const sh = new THREE.Mesh(G.shaft, M(poleCol)); g.add(sh);
+  G.rings.forEach(r => g.add(new THREE.Mesh(r, GOLD)));
+  return g;
+}
+const L_SHAFT = OAR_L;
 function poseRower(r, u, mode, T) {
   // The blade tip is driven along a path (in the water on the drive, lifted and swung forward on the
   // recovery); the shaft then runs from that tip up through the hands, so the paddle pivots in the water
@@ -2000,7 +2052,7 @@ function updateVisuals(dt, wall) {
     const base = G.state === 'menu' ? tw / 1.15 : b.rowPh;
     for (const r of b.rowers) {
       u = frac(base + 0.25 + r.off * chaos + (G.state === 'menu' ? r.off * 0.15 : 0));
-      if (r.i >= 12) {   // couples 13-16 (couples 1-12 row normally): pull and forward swing run at the same speed as couples 1-10 and start together, but the lift out of the water is slow (waiting for couples 1-10), so they row once per two strokes of the others
+      if (r.i >= 14) {   // couples 15-18 (couples 1-14 row normally): pull and forward swing run at the same speed as couples 1-10 and start together, but the lift out of the water is slow (waiting for couples 1-10), so they row once per two strokes of the others
         const m0 = (base + 0.25 + (G.state === 'menu' ? r.off * 0.15 : 0)) % 2, m = m0 < 0 ? m0 + 2 : m0;
         { const t = (m - 0.5) / 1.5; u = m < 0.5 ? m : 0.5 + 0.5 * (0.3 * t + 0.7 * t * t * t); }   // pull at normal speed, then the oar keeps moving: slow lift that steadily speeds up into the forward swing, landing with couples 1-10
       }
@@ -2470,7 +2522,7 @@ function openCB(edit) {   // edit = index of the boat to edit, or -1 for a new o
   CB.edit = edit;
   const s = edit >= 0 ? GARAGE[edit] : null;
   CB.skin = s ? s.skin : ''; CB.bow = s ? s.bow : ''; $('cbNum').value = s ? s.num : ''; $('cbName').value = s ? s.kh : '';
-  $('cbShirt').value = hex6(s && s.shirt != null ? s.shirt : 0xf7c71c); $('cbOar').value = hex6(s && s.oar != null ? s.oar : 0xf3f0e6); $('cbPole').value = hex6(s && s.pole != null ? s.pole : 0xe9c477);
+  $('cbShirt').value = hex6(s && s.shirt != null ? s.shirt : 0xf7c71c); $('cbOar').value = hex6(s && s.oar != null ? s.oar : OAR_BLADE); $('cbPole').value = hex6(s && s.pole != null ? s.pole : OAR_POLE);
   CBS.forEach((r, i) => { const v = s && s.stripes ? s.stripes[i] : null; $(r[0]).checked = v != null; $(r[1]).value = hex6(v != null ? v : r[2]); $(r[3]).value = s && s.stripeSz ? s.stripeSz[i] : 3; });
   $('cbStripeW').value = s ? s.stripeW : 1; $('cbCenterOn').checked = !!(s && s.centre != null); $('cbCenter').value = hex6(s && s.centre != null ? s.centre : 0xffd23f);
   $('cbMixOn').checked = !!(s && s.hull2 != null); $('cbHull2').value = hex6(s && s.hull2 != null ? s.hull2 : 0xffd23f);
