@@ -1977,7 +1977,9 @@ function updateVisuals(dt, wall) {
     if (G.state === 'menu') { mode = 1; }
     else if (active) mode = 1;
     const chaos = 0;   // crew always paddles in unison, even when the player misses or stops tapping
-    const base = G.state === 'menu' ? tw / 1.15 : T / I;
+    if (G.state === 'menu') b.rowPh = null;
+    else { if (b.rowPh == null) b.rowPh = T / I; b.rowPh += dt / I * (0.3 + 0.7 * sq); }   // oars follow the boat's speed: slow strokes while it starts, full rate at top speed
+    const base = G.state === 'menu' ? tw / 1.15 : b.rowPh;
     for (const r of b.rowers) {
       u = frac(base + 0.25 + r.off * chaos + (G.state === 'menu' ? r.off * 0.15 : 0));
       if (r.i >= 10) {   // couples 11-14: pull and forward swing run at the same speed as couples 1-10 and start together, but the lift out of the water is slow (waiting for couples 1-10), so they row once per two strokes of the others
