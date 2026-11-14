@@ -11,7 +11,7 @@
 /* ------------------------------------------------------------------ */
 const PI = Math.PI, TAU = Math.PI * 2;
 const RACE_LEN = 700;            // metres from the start line to the finish line
-const HL = 10.5;                 // hull half-length (m)
+const HL = 15;                 // hull half-length (m)
 const BOW = HL + 2;               // bow-nose offset from boat centre
 const START_NOSE = -3;           // bow x at start (start line is x = 0)
 const LANES = [5, -5];
@@ -1341,7 +1341,7 @@ function makeBoat(si) {
 
   // thwarts
   const wood = M(0xa9794a);
-  const rowers = [], pairs = 14;
+  const rowers = [], pairs = 16;
   const YEL = s.shirt != null ? s.shirt : 0xf7c71c, shirtMats = [M(YEL), M(YEL)], teamM = shirtMats[0];   // one crew colour: shirts, sleeves and headbands all use the boat's Shirt colour (yellow by default); the flag has its own colour
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
@@ -1351,7 +1351,7 @@ function makeBoat(si) {
   const bladeM = M(s.oar != null ? s.oar : 0xf3f0e6), shaftM = M(s.pole != null ? s.pole : 0xe9c477);   // two oar colours: shaft (pole) and tip (blade); defaults: wooden shaft, pale blade
   const L_SHAFT = 1.7;
   for (let i = 0; i < pairs; i++) {
-    const sx = 6.76 - i * 1.04;
+    const sx = (6.76 - i * 13.52 / (pairs - 1)) * HL / 10.5;
     // keep every rower inside the hull: narrow the seat spacing where the hull narrows
     const hu = Math.abs(sx / HL), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
     const htop = sheerTop(sx / HL), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
@@ -1388,12 +1388,12 @@ function makeBoat(si) {
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
   const apsara = makeApsara(sty);
-  const cap = apsara.root; box(body, 0.6, 0.07, 0.5, 8.5, 0.585, 0, wood);   // small wooden platform near the front of the boat
-  cap.position.set(8.5, 0.62, 0); cap.scale.setScalar(0.85); body.add(cap);
+  const cap = apsara.root; box(body, 0.6, 0.07, 0.5, 8.5 * HL / 10.5, 0.585, 0, wood);   // small wooden platform near the front of the boat
+  cap.position.set(8.5 * HL / 10.5, 0.62, 0); cap.scale.setScalar(0.85); body.add(cap);
   const capT = null, capArms = [];
 
   // steersman at the stern with a long steering oar (jointed arms, sweeps side to side)
-  const SX = -8.5, SY = 0.8;   // stands on a wooden floor inside the stern, feet on the wood, hull around his legs
+  const SX = -8.5 * HL / 10.5, SY = 0.8;   // stands on a wooden floor inside the stern, feet on the wood, hull around his legs
   const steer = new THREE.Group(); steer.position.set(SX, SY, 0); body.add(steer);
   box(body, 0.7, 0.06, 0.74, SX, SY - 0.03, 0, wood);   // wooden floor he stands on
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x1a1a1a), steer, 0.06, 0.03, z * 0.1, 0.14, 0.04, 0.075);   // feet
@@ -1411,7 +1411,7 @@ function makeBoat(si) {
   for (const z of [-1, 1]) mesh(GEO.sph, M(0x111111), steer, 0.2, 1.57, z * 0.075, 0.03, 0.03, 0.03);   // eyes look toward the bow
   mesh(GEO.sph, skins[2], steer, 0.22, 1.5, 0, 0.04, 0.04, 0.04);                                         // nose
   const oarShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1, 6), M(s.pole != null ? s.pole : 0xe9c477)); body.add(oarShaft);
-  const oarBlade = mesh(GEO.box, M(s.oar != null ? s.oar : 0xf3f0e6), body, 0, 0, 0, 0.05, 0.6, 0.3);   // same blade colour and size as the crew paddles
+  const oarBlade = mesh(GEO.box, M(s.oar != null ? s.oar : 0xf3f0e6), body, 0, 0, 0, 0.05, 0.9, 0.3);   // blade is 30% of the 3 m oar (0.9 m)
   const stUpG = new THREE.CylinderGeometry(0.092, 0.074, 1, 20, 2), stForeG = new THREE.CylinderGeometry(0.06, 0.04, 1, 20, 2);
   const stJoint = new THREE.SphereGeometry(1, 18, 12);
   const stArms = [0, 1].map(() => [new THREE.Mesh(stUpG, stMat), new THREE.Mesh(stForeG, skins[2])]);   // sleeve + bare forearm
@@ -1429,13 +1429,20 @@ function makeBoat(si) {
   let stAmp = 0;
   const steerUpdate = (t, pull) => {
     stAmp += ((pull ? 1 : 0) - stAmp) * 0.08;   // pull up/down eases in once the race starts, back to rest before
-    const sweep = Math.sin(t);
-    // oar is held outboard of the hull so it never passes through the gunwale
-    sdir.set(-0.45 + 0.15 * sweep, -0.8, 0.5).normalize();   // same slope and outboard lean as the crew paddles
-    const G = sV[0].set(SX + 0.2, SY + 1.35 + 0.35 * stAmp * Math.sin(t * 2) - 0.35 * (1 - stAmp), 0.5);
-    const tip = sV[1].copy(G).addScaledVector(sdir, 2.4), hnd = sV[2].copy(G).addScaledVector(sdir, -0.6);
+    // same stroke as couples 12-16: blade driven along a tip path (in the water on the pull, then a slow lift that speeds into the forward swing); phase `t` is the crew's own stroke clock, so he paddles exactly in time with them
+    const m0 = (t + 0.25) % 2, m = m0 < 0 ? m0 + 2 : m0, tt = (m - 0.5) / 1.5;
+    const u = m < 0.5 ? m : 0.5 + 0.5 * (0.3 * tt + 0.7 * tt * tt * tt);
+    let tx, ty, out, lift = 0;
+    if (u < 0.5) { const k = u / 0.5; tx = lerp(0.95, -0.75, smooth(k)); ty = 0.15; out = 0.6; }
+    else { const k = (u - 0.5) / 0.5, a = Math.sin(PI * k); tx = lerp(-0.75, 0.95, smooth(k)); ty = 0.15 + 0.85 * a; out = 0.6 + 0.45 * a; lift = a; }
+    const G = sV[0].set(SX + 0.2, SY + 1.35 + 0.1 * lift * stAmp - 0.35 * (1 - stAmp), 0.5);
+    sdir.set(-0.45, -0.8, 0.5).normalize();
+    const rest = sV[3].copy(G).addScaledVector(sdir, 2.4);   // resting blade position before the race
+    const tip = sV[1].set(SX + tx, ty, 1.0 + out).lerp(rest, 1 - stAmp);
+    sdir.subVectors(tip, G); { const dl = sdir.length(); sdir.multiplyScalar(1 / dl); if (dl > 2.4) tip.copy(G).addScaledVector(sdir, 2.4); }
+    const hnd = sV[2].copy(G).addScaledVector(sdir, -0.6), sweep = 0;
     aimV(oarShaft, hnd, tip);
-    oarBlade.position.copy(tip).addScaledVector(sdir, -0.2); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
+    oarBlade.position.copy(tip).addScaledVector(sdir, -0.45); oarBlade.quaternion.setFromUnitVectors(UPV, sdir);
     steer.rotation.y = 0.05 * sweep;
     const shR = new THREE.Vector3(SX, SY + 1.3, 0.25), shL = new THREE.Vector3(SX, SY + 1.3, -0.25), el = new THREE.Vector3(), wr = new THREE.Vector3();
     ik2(shR, G, 0.4, 0.4, new THREE.Vector3(-0.3, -1, 0.5), el, wr);           // right hand grips the steering oar at chest height; elbow bent naturally, hanging down and slightly out
@@ -1993,7 +2000,7 @@ function updateVisuals(dt, wall) {
     const base = G.state === 'menu' ? tw / 1.15 : b.rowPh;
     for (const r of b.rowers) {
       u = frac(base + 0.25 + r.off * chaos + (G.state === 'menu' ? r.off * 0.15 : 0));
-      if (r.i >= 10) {   // couples 11-14: pull and forward swing run at the same speed as couples 1-10 and start together, but the lift out of the water is slow (waiting for couples 1-10), so they row once per two strokes of the others
+      if (r.i >= 12) {   // couples 13-16 (couples 1-12 row normally): pull and forward swing run at the same speed as couples 1-10 and start together, but the lift out of the water is slow (waiting for couples 1-10), so they row once per two strokes of the others
         const m0 = (base + 0.25 + (G.state === 'menu' ? r.off * 0.15 : 0)) % 2, m = m0 < 0 ? m0 + 2 : m0;
         { const t = (m - 0.5) / 1.5; u = m < 0.5 ? m : 0.5 + 0.5 * (0.3 * t + 0.7 * t * t * t); }   // pull at normal speed, then the oar keeps moving: slow lift that steadily speeds up into the forward swing, landing with couples 1-10
       }
@@ -2013,12 +2020,12 @@ function updateVisuals(dt, wall) {
     b.cap.position.y = 0.62 + b.liftS * 0.04;
     b.apsara.update(ph, b.liftS, dt);
     // steersman sweeps the steering oar
-    b.steerUpdate(tw * 1.4 + b.id, G.state === 'race' || G.state === 'finishing' || G.state === 'results');
+    b.steerUpdate(base, G.state === 'race' || G.state === 'finishing' || G.state === 'results');
     // naga head bob
     b.head.rotation.z = -0.28 + Math.sin(tw * 2.2 + b.id) * 0.04 + sq * 0.05;
     // wake
     const wake = b.wake;
-    wake.position.set(b.x + BOW - 15 - 1.0, 0.24, b.z);
+    wake.position.set(b.x + BOW - 17 - 1.0, 0.24, b.z);
     const wo = clamp((b.v - 2) / 14, 0, 1) * 0.4;
     wake.material.opacity = lerp(wake.material.opacity, wo, 0.15);
     wake.scale.set(1, 1, 0.55 + sq * 0.35);
