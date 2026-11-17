@@ -240,30 +240,21 @@ function bannerTexture(kh, en, w, h, finish, band) {
     g.addColorStop(0, '#e0283f'); g.addColorStop(1, '#8c0c20');
     c.fillStyle = g; c.fillRect(0, 0, w, h);
     c.strokeStyle = '#ffcf3f'; c.lineWidth = h * 0.07; c.strokeRect(h * 0.05, h * 0.05, w - h * 0.1, h - h * 0.1);
-    c.strokeStyle = '#fff3c0'; c.lineWidth = 2; c.strokeRect(h * 0.14, h * 0.14, w - h * 0.28, h - h * 0.28);
+    c.strokeStyle = '#fff3c0'; c.lineWidth = h / 90; c.strokeRect(h * 0.14, h * 0.14, w - h * 0.28, h - h * 0.28);
     if (finish) { // chequered racing bands top and bottom
       const sq = h * 0.1;
       for (let i = 0; i * sq < w; i++) for (let j = 0; j < 2; j++) { c.fillStyle = (i + j) % 2 ? '#ffcf3f' : '#fff'; c.fillRect(i * sq, j * sq, sq, sq); c.fillStyle = (i + j) % 2 ? '#fff' : '#ffcf3f'; c.fillRect(i * sq, h - (j + 1) * sq, sq, sq); }
       c.strokeStyle = '#ffcf3f'; c.lineWidth = h * 0.05; c.strokeRect(h * 0.025, h * 0.025, w - h * 0.05, h - h * 0.05);
     }
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    // Khmer title: fits inside the inner frame, dark outline + soft shadow for crisp edges
-    let fs = Math.floor(h * 0.30);
-    c.font = fs + 'px ' + FONT_T;
-    while (c.measureText(kh).width > w * 0.8 && fs > 10) { fs -= 2; c.font = fs + 'px ' + FONT_T; }
-    c.lineJoin = 'round'; c.lineWidth = Math.max(3, h * 0.022); c.strokeStyle = 'rgba(90,6,18,.9)';
-    c.shadowColor = 'rgba(0,0,0,.45)'; c.shadowBlur = h * 0.03; c.shadowOffsetY = h * 0.012;
-    c.fillStyle = '#ffe27a';
-    c.strokeText(kh, w / 2, h * 0.40); c.fillText(kh, w / 2, h * 0.40);
-    // English subtitle
-    c.shadowBlur = h * 0.02;
-    let fe = Math.floor(h * 0.22);
-    c.font = '800 ' + fe + 'px ' + FONT_B;
-    try { c.letterSpacing = Math.floor(h * 0.03) + 'px'; } catch (e) {}
-    while (c.measureText(en).width > w * 0.8 && fe > 10) { fe -= 2; c.font = '800 ' + fe + 'px ' + FONT_B; }
-    c.strokeText(en, w / 2, h * 0.745);
-    c.fillStyle = '#fff'; c.fillText(en, w / 2, h * 0.745);
-    c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
+    c.fillStyle = '#ffe27a'; c.font = Math.floor(h * 0.34) + 'px ' + FONT_T;
+    c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = h * 0.033;
+    c.fillText(kh, w / 2, h * 0.38);
+    c.fillStyle = '#fff'; c.font = '800 ' + Math.floor(h * 0.27) + 'px ' + FONT_B;
+    try { c.letterSpacing = Math.floor(h * 0.025) + 'px'; } catch (e) {}
+    c.fillText(en, w / 2, h * 0.74);
+    try { c.letterSpacing = '0px'; } catch (e) {}
+    c.shadowColor = 'transparent'; c.shadowBlur = 0;
     try { c.letterSpacing = '0px'; } catch (e) {}
   });
 }
