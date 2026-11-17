@@ -2083,7 +2083,7 @@ function setupRace() {
   let ai = 0;
   boats.forEach((b, i) => {
     const human = G.mode === 3 ? i === NET.myIdx : (i === 0 || (G.mode === 2 && i === 1));
-    Object.assign(b, { x: START_NOSE - BOW, z: G.mode === 3 && i !== NET.myIdx ? LANES[1] : G.mode === 3 ? LANES[0] : LANES[i], v: 0, sync: 0.4, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0, human, auto: false, remote: G.mode === 3 && !human,
+    Object.assign(b, { x: START_NOSE - BOW, z: G.mode === 3 && i !== NET.myIdx ? LANES[1] : G.mode === 3 ? LANES[0] : LANES[i], v: 0, sync: 0.4, syncS: null, acc: 0, boostS: 0, surge: 0, combo: 0, maxCombo: 0, score: 0, boostT: 0, finished: false, finishT: 0, human, auto: false, remote: G.mode === 3 && !human,
       player: human ? i : -1, ptr: 0, aiPtr: 0, ns: new Uint8Array(G.notes.length), stats: { p: 0, g: 0, m: 0 }, lastHit: -9, rank: 0, strokeT: 0, bandsDone: 0 });
     if (human) { G.humans.push(b); if (G.demo) { b.auto = true; b.skill = 0.9; } }
     else { b.skill = aiSkills[ai++ % aiSkills.length]; }
@@ -2145,7 +2145,7 @@ function toMenu(keepRoom) {
   G.state = 'menu'; G.paused = false; if (!keepRoom) { netClose(); saveSess(null); } refreshMenu();
   ['results', 'help', 'pause'].forEach(id => $(id).classList.add('hidden'));
   $('hud').classList.add('hidden'); showScreen();
-  boats.forEach((b, i) => { Object.assign(b, { x: START_NOSE - BOW - 14 - [0, 7, 3, 10, 5][i], z: LANES[i], v: 0, sync: 0.5, human: false, finished: false, boostT: 0, combo: 0 }); });
+  boats.forEach((b, i) => { Object.assign(b, { x: START_NOSE - BOW - 14 - [0, 7, 3, 10, 5][i], z: LANES[i], v: 0, sync: 0.5, syncS: null, acc: 0, boostS: 0, surge: 0, human: false, finished: false, boostT: 0, combo: 0 }); });
 }
 
 /* ------------------------------------------------------------------ */
@@ -2210,9 +2210,11 @@ function stepRace(dt) {
       if (b.boostT > 0) b.boostT -= dt;
       b.boostS = (b.boostS || 0) + ((b.boostT > 0 ? 1 : 0) - (b.boostS || 0)) * Math.min(1, dt * 2);   // boost eases in/out instead of switching the target speed on and off
       b.surge = (b.surge || 0) * (1 - Math.min(1, dt * 1.5));
-      const tv = VMIN + (VMAX - VMIN) * Math.pow(b.sync, 1.15) + 4.5 * b.boostS + b.surge;
-      if (!b.finished) b.v += (tv - b.v) * Math.min(1, dt * 1.5);
-      else b.v += (0 - b.v) * Math.min(1, dt * 0.45);
+      b.syncS = b.syncS == null ? b.sync : b.syncS + (b.sync - b.syncS) * Math.min(1, dt * 2.5);   // sync steps per hit are eased so the target speed glides instead of stepping
+      const tv = VMIN + (VMAX - VMIN) * Math.pow(b.syncS, 1.15) + 4.5 * b.boostS + b.surge;
+      const wantA = b.finished ? (0 - b.v) * 0.45 : (tv - b.v) * 1.5;
+      b.acc = (b.acc || 0) + (wantA - (b.acc || 0)) * Math.min(1, dt * 3);   // acceleration itself is eased (no sudden push), so speed changes have no kinks
+      b.v = Math.max(0, b.v + b.acc * dt);
       b.x += b.v * dt;
       if (b.human && b.bandsDone < BANDS.length && b.x + BOW >= BANDS[b.bandsDone]) {
         b.bandsDone++; showBanner(b.bandsDone === 1 ? 'កងព័ន្ធទី១' : 'កងព័ន្ធទី២', 'BAND ' + b.bandsDone);
@@ -2378,14 +2380,12 @@ function updateCamera(dt, wall) {
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
   camSnap = false;
   camera.position.copy(camPos);
-  if (G.state === 'race') { const am = (splitOn ? vb[0].boostS || 0 : Math.max(0, ...vb.map(b => b.boostS || 0))) * 0.07; camera.position.x += am * Math.sin(wall * 37); camera.position.y += am * Math.sin(wall * 29 + 1); }   // soft, eased boost rumble (was random per-frame jitter)
   camera.lookAt(camLook);
   if (splitOn) {   // second camera follows the second player's boat
     const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], camera2.aspect, d2, l2); orbitDes(d2, l2);
     const k2 = camSnap2 ? 1 : 1 - Math.exp(-dt * 3.2);
     camPos2.lerp(d2, k2); camLook2.lerp(l2, camSnap2 ? 1 : 1 - Math.exp(-dt * 4)); camSnap2 = false;
     camera2.position.copy(camPos2);
-    if (G.state === 'race') { const am = (vb[1].boostS || 0) * 0.07; camera2.position.x += am * Math.sin(wall * 37); camera2.position.y += am * Math.sin(wall * 29 + 1); }
     camera2.lookAt(camLook2);
     camera2.fov = lerp(camera2.fov, f2, 1 - Math.exp(-dt * 3)); camera2.updateProjectionMatrix();
   }
