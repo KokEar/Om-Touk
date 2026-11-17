@@ -97,12 +97,12 @@ const box = (p, w, h, d, x, y, z, mat) => mesh(GEO.box, mat, p, x, y, z, w, h, d
 const cyl = (p, rt, h, x, y, z, mat, geo) => { const m = mesh(geo || GEO.cyl, mat, p, x, y, z, rt, h, rt); return m; };
 
 /* canvas helper that survives a late web-font load */
-function canvasTex(w, h, draw) {
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
+function canvasTex(w, h, draw, ss = 1) {   // ss = supersampling: canvas is ss x bigger, drawing code still uses w x h units
+  const c = document.createElement('canvas'); c.width = w * ss; c.height = h * ss;
   const ctx = c.getContext('2d');
   const tex = new THREE.CanvasTexture(c);
-  tex.anisotropy = 4; tex.repeat.x = -1; tex.offset.x = 1;   // the canvas is shown mirrored (race runs right to left), so pre-flip every texture to keep text readable
-  const fn = () => { ctx.clearRect(0, 0, w, h); draw(ctx, w, h); tex.needsUpdate = true; };
+  tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); tex.repeat.x = -1; tex.offset.x = 1;   // the canvas is shown mirrored (race runs right to left), so pre-flip every texture to keep text readable
+  const fn = () => { ctx.setTransform(ss, 0, 0, ss, 0, 0); ctx.clearRect(0, 0, w, h); draw(ctx, w, h); tex.needsUpdate = true; };
   fn(); redraws.push(fn);
   return tex;
 }
@@ -152,7 +152,7 @@ const cloudTexes = [11, 23, 37, 41].map(seed => canvasTex(256, 128, (c, w, h) =>
   sh.addColorStop(0, 'rgba(150,175,205,0)'); sh.addColorStop(1, 'rgba(150,175,205,.55)');
   c.globalCompositeOperation = 'source-atop'; c.fillStyle = sh; c.fillRect(0, base - 30, w, 40);
   c.restore();
-}));
+}, 3));
 // Keep the canvases premultiplied on upload: iOS stores low-alpha pixels premultiplied, and un-premultiplying them gives rainbow speckle noise
 cloudTexes.forEach(t => { t.premultiplyAlpha = true; t.needsUpdate = true; });
 const cloudGroup = new THREE.Group();
@@ -224,7 +224,7 @@ const flagTex = canvasTex(256, 170, (c, w, h) => {
   const tower = (x, hh, ww) => { c.beginPath(); c.moveTo(x - ww, by - 8); c.lineTo(x - ww * 0.8, by - 8 - hh * 0.5); c.lineTo(x - ww * 0.4, by - 8 - hh * 0.8); c.lineTo(x, by - 8 - hh); c.lineTo(x + ww * 0.4, by - 8 - hh * 0.8); c.lineTo(x + ww * 0.8, by - 8 - hh * 0.5); c.lineTo(x + ww, by - 8); c.closePath(); c.fill(); };
   tower(cx, 48, 14); tower(cx - 26, 34, 10); tower(cx + 26, 34, 10);
   c.fillRect(cx - 40, by - 14, 80, 7);
-});
+}, 3);
 const flagMat = new THREE.MeshBasicMaterial({ map: flagTex, side: THREE.DoubleSide });
 flagMat.onBeforeCompile = sh => {
   sh.uniforms.uT = shared.uT;
