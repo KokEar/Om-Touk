@@ -2434,6 +2434,9 @@ function frame(now) {
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
+  // render at native device resolution, limited by a total pixel budget (~3.2 MP) to keep phones smooth
+  const dpr = Math.min(window.devicePixelRatio || 1, 3, Math.max(1.75, Math.sqrt(3200000 / (w * h))));
+  renderer.setPixelRatio(dpr);
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   pMat.uniforms.uPx.value = h * renderer.getPixelRatio() / (2 * Math.tan(camera.fov * PI / 360));
