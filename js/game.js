@@ -250,9 +250,11 @@ function bannerTexture(kh, en, w, h, finish, band) {
     c.fillStyle = '#ffe27a'; c.font = Math.floor(h * 0.34) + 'px ' + FONT_T;
     c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = h * 0.033;
     c.fillText(kh, w / 2, h * 0.38);
+    const inkC = () => { const m = c.measureText(kh); return (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2; };
+    const khC = w / 2 + inkC();   // visual (ink) centre of the Khmer text
     c.fillStyle = '#fff'; c.font = '800 ' + Math.floor(h * 0.27) + 'px ' + FONT_B;
     try { c.letterSpacing = Math.floor(h * 0.025) + 'px'; } catch (e) {}
-    c.fillText(en, w / 2, h * 0.74);
+    { const m = c.measureText(en), ex = (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2; c.fillText(en, khC - ex, h * 0.74); }   // centre the English ink under the Khmer ink
     try { c.letterSpacing = '0px'; } catch (e) {}
     c.shadowColor = 'transparent'; c.shadowBlur = 0;
     try { c.letterSpacing = '0px'; } catch (e) {}
