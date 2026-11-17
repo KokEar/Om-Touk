@@ -1034,7 +1034,7 @@ function buildCourse() {
 /* ------------------------------------------------------------------ */
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
-const BOW_U0 = 0.82, BOW_RAKE = 0.4, BOW_RISE = 0.65;   // racing-boat bow (side view as in the reference drawing): nearly flat sheer, keel line curving up to meet it at a blunt ~0.4 m thick end under a gold cap
+const BOW_U0 = 0.7, BOW_RAKE = 0.9, BOW_RISE = 0.95;   // racing-boat bow (side view as in the reference drawing): nearly flat sheer, keel line curving up to meet it at a blunt ~0.4 m thick end under a gold cap
 const STERN_RAKE = 0.6, STERN_RISE = 1.15;   // the stern tail sweeps up too
 const hullW = au => 0.17 + 0.83 * Math.pow(1 - Math.pow(au, 2.4), 0.85);
 const hullD = au => 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
@@ -1043,9 +1043,9 @@ function hullProfile(u) {
   const au = Math.abs(u);
   if (u > 0 && au > BOW_U0) {   // swan-neck bow measured from the reference drawing: sheer and keel both curve up (concave), meeting at a thin narrow tip
     const t = (au - BOW_U0) / (1 - BOW_U0), w0 = hullW(BOW_U0);
-    const top = 0.82 + BOW_RISE * (Math.pow(t, 2.0) - 0.25 * Math.pow(t, 8));   // sheer sweeps up and flattens into a forward-curling spoon lip
-    const b0 = 0.82 - hullD(BOW_U0), b1 = 0.82 + BOW_RISE * 0.75 - 0.25, bot = b0 + (b1 - b0) * Math.pow(t, 1.6);   // keel curving up smoothly into the stem
-    return { x: u * HL + BOW_RAKE * t, top, d: top - bot, w: w0 * (1 - 0.6 * Math.pow(t, 1.2)), t };
+    const top = 0.82 + BOW_RISE * (0.55 * t + 0.45 * Math.pow(t, 2.6));   // long smooth sweep: sheer rises almost straight like the photo, then curls up a little more at the tip
+    const b0 = 0.82 - hullD(BOW_U0), b1 = 0.82 + BOW_RISE - 0.16, bot = b0 + (b1 - b0) * Math.pow(t, 1.9);   // underside stays deep then sweeps up to the tip, as in the photo
+    return { x: u * HL + BOW_RAKE * Math.pow(t, 1.4), top, d: top - bot, w: w0 * (1 - 0.72 * Math.pow(t, 1.4)), t };
   }
   return { x: u * HL, top: 0.82 + (u < 0 ? STERN_RISE * Math.pow(au, 4) : 0), d: hullD(au), w: hullW(au), t: 0 };
 }
@@ -1056,7 +1056,7 @@ function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used f
     const u = -1 + 2 * i / N, au = Math.abs(u), P = hullProfile(u);
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
-      const ins = inset ? 0.14 * P.t : 0;
+      const ins = inset ? 0.06 * P.t : 0;
       pos.push(P.x - (u < 0 ? STERN_RAKE * Math.pow(au, 3) * (1 - Math.sin(th)) : 0), P.top - ins - (P.d - ins) * Math.sin(th), -P.w * Math.cos(th));   // stern: upper edge pushed back = raked tail
       uv.push(i / N, j / Mm);
     }
@@ -1078,7 +1078,7 @@ function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used f
 }
 // closed deck over the front of the bow (a broad spoon-shaped top, as on the reference boat)
 function bowDeckGeometry() {
-  const pos = [], idx = [], K = 12, U1 = 0.91;
+  const pos = [], idx = [], K = 12, U1 = 0.88;   // deck starts ahead of the apsara so the hull stays open around her (a cockpit to sit and dance in)
   for (let k = 0; k <= K; k++) { const P = hullProfile(U1 + (1 - U1) * k / K); pos.push(P.x, P.top + 0.004, -P.w, P.x, P.top + 0.004, P.w); }
   for (let k = 0; k < K; k++) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry();
@@ -1382,7 +1382,7 @@ function makeBoat(si) {
     }
     // prow / stern ornament as on real racing boats: gold gourd knob, embroidered navy cloth banner with studs, black horsehair tassel, saffron cloth ribbons
     for (const ex of [HL + 0.12]) {   // bow only (stern has just the flag)
-      const px = HL + BOW_RAKE - 0.05, py = 0.82 + BOW_RISE * 0.75 - 0.2;
+      const px = HL + BOW_RAKE - 0.05, py = 0.82 + BOW_RISE - 0.22;
       const mk2 = (z, ph, k) => { const g = new THREE.Group(); g.position.set(px, py, z); body.add(g); anim.tassels.push({ g, ph: ph + ex * 0.3, k: ex < 0 ? k * 1.2 : k * 0.8 }); return g; };
       const main = mk2(0, 0.4, 0.6);
       const bt = canvasTex(64, 160, (c, w, h) => {
@@ -1453,7 +1453,7 @@ function makeBoat(si) {
   }
   // golden apsara dancer on the prow (jointed + IK, stands on one leg)
   const apsara = makeApsara(sty);
-  const cap = apsara.root; box(body, 0.6, 0.07, 0.5, 8.5 * HL / 10.5, 0.585, 0, wood);   // small wooden platform near the front of the boat
+  const cap = apsara.root;   // no wooden platform under her
   cap.position.set(8.5 * HL / 10.5, 0.62, 0); cap.scale.setScalar(0.85); body.add(cap);
   const capT = null, capArms = [];
 
