@@ -1078,11 +1078,11 @@ function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used f
 }
 // closed deck over the front of the bow (a broad spoon-shaped top, as on the reference boat)
 function bowDeckGeometry() {
-  const pos = [], idx = [], K = 12, U1 = 0.88;   // deck starts ahead of the apsara so the hull stays open around her (a cockpit to sit and dance in)
-  for (let k = 0; k <= K; k++) { const P = hullProfile(U1 + (1 - U1) * k / K); pos.push(P.x, P.top + 0.004, -P.w, P.x, P.top + 0.004, P.w); }
+  const pos = [], uv = [], idx = [], K = 12, U1 = 0.88;   // deck starts ahead of the apsara so the hull stays open around her (a cockpit to sit and dance in)
+  for (let k = 0; k <= K; k++) { const P = hullProfile(U1 + (1 - U1) * k / K); pos.push(P.x, P.top + 0.004, -P.w, P.x, P.top + 0.004, P.w); uv.push(k / K, 0, k / K, 1); }
   for (let k = 0; k < K; k++) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
 const BOWDECK_GEO = bowDeckGeometry(), HULL_GEO = hullGeometry(), INNER_GEO = hullGeometry(true);
@@ -1445,7 +1445,20 @@ function makeBoat(si) {
   body.add(new THREE.Mesh(HULL_GEO, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })));
   const inner = new THREE.Mesh(INNER_GEO, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide }));
   inner.scale.set(0.992, 0.97, 0.9); inner.position.y = 0.05; body.add(inner);
-  body.add(new THREE.Mesh(BOWDECK_GEO, new THREE.MeshLambertMaterial({ color: s.hull, side: THREE.DoubleSide })));   // covered bow deck in the boat's hull colour
+  {   // covered bow deck: the boat's own colours - slanted bands of the front-end stripe colours (as painted on the sides), or the plain hull colour when the boat has no stripes
+    const zc = zebraList(s.stripes, s.stripeSz), hx = n => '#' + n.toString(16).padStart(6, '0');
+    let deckMat;
+    if (zc.length) {
+      const dt = canvasTex(512, 256, (c, w, h) => {
+        c.fillStyle = hx(s.hull); c.fillRect(0, 0, w, h);
+        const d = -h * 0.5;
+        for (let x = d, k = 0; x < w - d; k++) { const [cl, n] = zc[k % zc.length], bw = n * 38; if (cl != null) { c.fillStyle = hx(cl); c.beginPath(); c.moveTo(x, 0); c.lineTo(x + bw, 0); c.lineTo(x + bw - d, h); c.lineTo(x - d, h); c.closePath(); c.fill(); } x += bw; }
+        c.fillStyle = '#f2c230'; c.fillRect(0, 0, w, 6); c.fillRect(0, h - 6, w, 6);   // gold edge trim
+      });
+      deckMat = new THREE.MeshLambertMaterial({ map: dt, side: THREE.DoubleSide });
+    } else deckMat = new THREE.MeshLambertMaterial({ color: s.hull, side: THREE.DoubleSide });
+    body.add(new THREE.Mesh(BOWDECK_GEO, deckMat));
+  }
 
   // deck floor inside the hull, just above the waterline, so no water shows through the open hull
   {
