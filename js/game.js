@@ -2015,7 +2015,7 @@ function updateHud() {
 function applyResult(b, code, i) {
   b.ns[i] = code;
   const T = G.T;
-  if (code === 2) { b.sync += 0.07; b.combo++; b.stats.p++; b.score += 300 + b.combo * 10; b.v += 0.5; }
+  if (code === 2) { b.sync += 0.07; b.combo++; b.stats.p++; b.score += 300 + b.combo * 10; b.surge = Math.min(2, (b.surge || 0) + 0.5); }   // perfect hit = small surge that eases in and out (no instant speed jump)
   else if (code === 1) { b.sync += 0.036; b.combo++; b.stats.g++; b.score += 100 + b.combo * 5; }
   else { b.sync -= 0.12; b.combo = 0; b.stats.m++; }
   b.sync = clamp(b.sync, 0, 1);
@@ -2208,7 +2208,9 @@ function stepRace(dt) {
         }
       }
       if (b.boostT > 0) b.boostT -= dt;
-      const tv = VMIN + (VMAX - VMIN) * Math.pow(b.sync, 1.15) + (b.boostT > 0 ? 4.5 : 0);
+      b.boostS = (b.boostS || 0) + ((b.boostT > 0 ? 1 : 0) - (b.boostS || 0)) * Math.min(1, dt * 2);   // boost eases in/out instead of switching the target speed on and off
+      b.surge = (b.surge || 0) * (1 - Math.min(1, dt * 1.5));
+      const tv = VMIN + (VMAX - VMIN) * Math.pow(b.sync, 1.15) + 4.5 * b.boostS + b.surge;
       if (!b.finished) b.v += (tv - b.v) * Math.min(1, dt * 1.5);
       else b.v += (0 - b.v) * Math.min(1, dt * 0.45);
       b.x += b.v * dt;
@@ -2376,14 +2378,14 @@ function updateCamera(dt, wall) {
   camPos.lerp(des, k); camLook.lerp(look, camSnap ? 1 : 1 - Math.exp(-dt * 4));
   camSnap = false;
   camera.position.copy(camPos);
-  if ((splitOn ? vb[0].boostT > 0 : vb.some(b => b.boostT > 0)) && G.state === 'race') { camera.position.x += (Math.random() - .5) * 0.12; camera.position.y += (Math.random() - .5) * 0.12; }
+  if (G.state === 'race') { const am = (splitOn ? vb[0].boostS || 0 : Math.max(0, ...vb.map(b => b.boostS || 0))) * 0.07; camera.position.x += am * Math.sin(wall * 37); camera.position.y += am * Math.sin(wall * 29 + 1); }   // soft, eased boost rumble (was random per-frame jitter)
   camera.lookAt(camLook);
   if (splitOn) {   // second camera follows the second player's boat
     const d2 = new THREE.Vector3(), l2 = new THREE.Vector3(), f2 = camGoal([vb[1]], camera2.aspect, d2, l2); orbitDes(d2, l2);
     const k2 = camSnap2 ? 1 : 1 - Math.exp(-dt * 3.2);
     camPos2.lerp(d2, k2); camLook2.lerp(l2, camSnap2 ? 1 : 1 - Math.exp(-dt * 4)); camSnap2 = false;
     camera2.position.copy(camPos2);
-    if (vb[1].boostT > 0 && G.state === 'race') { camera2.position.x += (Math.random() - .5) * 0.12; camera2.position.y += (Math.random() - .5) * 0.12; }
+    if (G.state === 'race') { const am = (vb[1].boostS || 0) * 0.07; camera2.position.x += am * Math.sin(wall * 37); camera2.position.y += am * Math.sin(wall * 29 + 1); }
     camera2.lookAt(camLook2);
     camera2.fov = lerp(camera2.fov, f2, 1 - Math.exp(-dt * 3)); camera2.updateProjectionMatrix();
   }
