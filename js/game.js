@@ -1146,8 +1146,8 @@ function makeApsara(styleIdx) {
 
   // pelvis + sampot
   const pelvis = new THREE.Group(); root.add(pelvis);
-  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.36, 0.78, 16, 1, true), goldL); skirt.position.y = -0.38; skirt.scale.set(0.9, 1, 1.05); pelvis.add(skirt);
-  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.022, 5, 18), GOLD); hem.position.y = -0.77; hem.rotation.x = PI / 2; hem.scale.set(0.9, 1.05, 1); pelvis.add(hem);
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.36, 0.78, 16, 1, true), goldL); skirt.position.y = -0.12; skirt.scale.set(0.78, 0.3, 0.6); pelvis.add(skirt);
+  const hem = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.022, 5, 18), GOLD); hem.position.y = -0.24; hem.rotation.x = PI / 2; hem.scale.set(0.78, 0.6, 1); pelvis.add(hem);
   mesh(GEO.cyl, GOLD, pelvis, 0, 0.02, 0, 0.2, 0.07, 0.22);
   // legs
   const legG = new THREE.CylinderGeometry(0.07, 0.055, 1, 8);
@@ -1156,7 +1156,7 @@ function makeApsara(styleIdx) {
   const footS = mesh(GEO.sph, gold2, root, 0, 0, 0, 0.14, 0.05, 0.07), footR = mesh(GEO.sph, gold2, root, 0, 0, 0, 0.06, 0.14, 0.07);
   const ankS = mesh(GEO.cyl, GOLD, root, 0, 0, 0, 0.065, 0.04, 0.065), ankR = mesh(GEO.cyl, GOLD, root, 0, 0, 0, 0.06, 0.04, 0.06);
   // the raised back leg read as a 'tail' behind the dancer, so it is hidden (she stands on one leg under the skirt)
-  for (const o of [thR, shR, footR, ankR]) o.visible = false;
+  for (const o of [thR, shR, footR, ankR, thS, shS, footS, ankS]) o.visible = false;   // seated: legs folded under the skirt
   // torso
   const torso = new THREE.Group(); root.add(torso);
   // rounded, feminine torso: ribcage ellipsoid, tapered waist, soft hips (no boxy slab)
@@ -1248,9 +1248,10 @@ function makeApsara(styleIdx) {
     let fs = 0; for (const k in F) fs += F[k].x + F[k].y + F[k].z;
     if (!isFinite(fs) || !isFinite(wrist.f)) { for (const k in F) F[k].set(0, 0, 0); wrist.f = 0; }
     const s1 = Math.sin(ph), c1 = Math.cos(ph), sh = Math.sin(ph * 0.5);
-    const hipY = 0.87 - st.flex * (1 - Math.cos(ph)), hipZ = st.sway * s1;
+    const SEAT = 0.22, dy = SEAT - 0.87;   // seated on the platform
+    const hipY = SEAT - st.flex * (1 - Math.cos(ph)), hipZ = st.sway * 1.5 * s1;
     pelvis.position.set(0, hipY, hipZ); sm(F.pe, tgt.set(0.05 * s1, st.twist * 0.5 * sh, -0.025 * s1), 6, dt); sm(F.pe2, F.pe, 6, dt); sm(F.pe3, F.pe2, 6, dt); pelvis.rotation.set(F.pe3.x, F.pe3.y, F.pe3.z);
-    torso.position.set(0, hipY, hipZ); sm(F.tr, tgt.set(-0.06 * s1, st.twist * sh, -0.05 + 0.03 * Math.sin(ph - 0.5)), 6, dt); sm(F.tr2, F.tr, 6, dt); sm(F.tr3, F.tr2, 6, dt); torso.rotation.set(F.tr3.x, F.tr3.y, F.tr3.z);
+    torso.position.set(0, hipY, hipZ); sm(F.tr, tgt.set(-0.16 * s1, st.twist * 1.4 * sh, -0.05 + 0.05 * Math.sin(ph - 0.5)), 6, dt); sm(F.tr2, F.tr, 6, dt); sm(F.tr3, F.tr2, 6, dt); torso.rotation.set(F.tr3.x, F.tr3.y, F.tr3.z);
     torso.updateMatrix();
     sm(F.hd, tgt.set(0.05 * Math.sin(ph + 0.8), 0.2 * Math.sin(ph * 0.5 - 0.6), -st.tilt * Math.sin(ph + 0.4)), 5, dt); sm(F.hd2, F.hd, 5, dt); head.rotation.set(F.hd2.x, F.hd2.y, F.hd2.z);
 
@@ -1271,8 +1272,8 @@ function makeApsara(styleIdx) {
     const m = 0.5 + 0.5 * sh, L = lift * 0.25;
     // every style keeps each hand in a fixed side plane (constant z): the hands only travel forwards <-> backwards (x), with a little rise and fall
     // every style: hands swing in opposition: one forwards while the other goes back
-    T.hR.set(0.2 + 0.32 * s1, 1.5 + 0.1 * c1 + L, 0.4);
-    T.hL.set(0.2 - 0.32 * s1, 1.34 - 0.1 * c1 + L, -0.4);
+    T.hR.set(0.2 + 0.32 * s1, 1.5 + dy + 0.16 * c1 + L, 0.4);
+    T.hL.set(0.2 - 0.32 * s1, 1.34 + dy - 0.16 * c1 + L, -0.4);
     sm(F.hR, T.hR, 4, dt); sm(F.hR2, F.hR, 4, dt); sm(F.hR3, F.hR2, 4, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 4, dt); sm(F.hL2, F.hL, 4, dt); sm(F.hL3, F.hL2, 4, dt); T.hL.copy(F.hL3);
     curPh = ph; wrist.f += ((0.4 + 0.2 * Math.sin(ph + 0.6)) - wrist.f) * (1 - Math.exp(-6 * dt));
     T.shS.set(0, 0.54, 0.19).applyMatrix4(torso.matrix);
@@ -1359,13 +1360,34 @@ function makeBoat(si) {
       const flag = new THREE.Mesh(fgeo, new THREE.MeshLambertMaterial({ color: s.shirts[0], side: THREE.DoubleSide }));
       flag.position.set(-0.5, 1.55, 0); flagRig.add(flag);
     }
-    for (const ex of [-HL - 0.12, HL + 0.12]) [[0xd0202a, -0.17, 0.75], [0x111111, 0, 0.85], [0xf0861c, 0.17, 0.7]].forEach(([c, z, l]) => {
-      const tm = M(c);
-      const tg = new THREE.Group(); tg.position.set(ex < 0 ? -HL - BOW_RAKE + 0.1 : HL + BOW_RAKE - 0.1, 0.82 + (ex < 0 ? STERN_RISE : BOW_RISE) - 0.1, z); body.add(tg);   // pivot at the top so the tassel can swing
-      mesh(GEO.cyl, tm, tg, 0, -l / 2, 0, 0.06, l, 0.06);
-      mesh(GEO.sph, tm, tg, 0, 0, 0, 0.09, 0.09, 0.09);
-      anim.tassels.push({ g: tg, ph: z * 9 + ex * 0.3, k: ex < 0 ? 1.2 : 0.8 });
-    });
+    // prow / stern ornament as on real racing boats: gold gourd knob, embroidered navy cloth banner with studs, black horsehair tassel, saffron cloth ribbons
+    for (const ex of [HL + 0.12]) {   // bow only (stern has just the flag)
+      const px = ex < 0 ? -HL - BOW_RAKE + 0.1 : HL + BOW_RAKE - 0.1, py = 0.82 + (ex < 0 ? STERN_RISE : BOW_RISE) - 0.1;
+      const mk2 = (z, ph, k) => { const g = new THREE.Group(); g.position.set(px, py, z); body.add(g); anim.tassels.push({ g, ph: ph + ex * 0.3, k: ex < 0 ? k * 1.2 : k * 0.8 }); return g; };
+      const main = mk2(0, 0.4, 0.6);
+      const bt = canvasTex(64, 160, (c, w, h) => {
+        c.fillStyle = '#16254f'; c.fillRect(0, 0, w, h);
+        c.strokeStyle = '#d8dce6'; c.lineWidth = 2; c.strokeRect(5, 5, w - 10, h - 10);
+        c.strokeStyle = '#e2c25a'; c.lineWidth = 2;
+        for (let y = 14; y < h - 20; y += 22) { c.beginPath(); c.moveTo(10, y); c.lineTo(w / 2, y + 14); c.lineTo(w - 10, y); c.stroke(); }   // chevron embroidery
+        c.fillStyle = '#c9ced8'; for (let y = 22; y < h - 10; y += 22) { c.beginPath(); c.arc(w / 2, y + 6, 3, 0, 6.3); c.fill(); }   // silver studs
+      });
+      const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.72), new THREE.MeshLambertMaterial({ map: bt, side: THREE.DoubleSide }));
+      cloth.rotation.y = PI / 2; cloth.position.set(0, -0.4, 0); main.add(cloth);
+      const hairM2 = M(0x0c0c0c);
+      for (let k = 0; k < 16; k++) {   // black horsehair strands
+        const l = 0.55 + 0.25 * ((k * 37) % 10) / 10, z = ((k % 8) - 3.5) * 0.04, x = (((k * 13) % 7) - 3) * 0.025;
+        const st2 = mesh(GEO.cyl, hairM2, main, x, -0.75 - l / 2, z, 0.012, l, 0.012); st2.rotation.z = (k % 2 ? 1 : -1) * 0.05 * (1 + k % 3);
+      }
+      for (const z of [-0.22, 0.22]) {   // black horsehair hanging at each side of the banner
+        const rb = mk2(z, z * 9, 1.0);
+        mesh(GEO.sph, hairM2, rb, 0, 0, 0, 0.07, 0.06, 0.07);
+        for (let k = 0; k < 20; k++) {
+          const l = 0.5 + 0.4 * ((k * 53) % 10) / 10, dz = (((k * 7) % 9) - 4) * 0.012, dx = (((k * 11) % 7) - 3) * 0.015;
+          const hs = mesh(GEO.cyl, hairM2, rb, dx, -0.04 - l / 2, dz, 0.01, l, 0.01); hs.rotation.z = (k % 2 ? 1 : -1) * 0.04 * (1 + k % 4); hs.rotation.x = (((k * 5) % 5) - 2) * 0.04;
+        }
+      }
+    }
   }
   const head = new THREE.Group(); body.add(head);
 
