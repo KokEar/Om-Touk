@@ -419,11 +419,11 @@ function chofa(parent, x, y, z, sx, sz, s) {
   const pts = [];
   for (let i = 0; i <= 7; i++) {
     const t = i / 7;
-    pts.push(new THREE.Vector3(x + sx * s * (1.5 * Math.sin(t * 1.9)), y + s * 2.6 * t, z + sz * s * (1.5 * Math.sin(t * 1.9))));
+    pts.push(new THREE.Vector3(x + sx * s * (1.5 * Math.sin(t * 1.9)), y + s * 1.8 * t, z + sz * s * (1.5 * Math.sin(t * 1.9))));
   }
   for (let i = 0; i < 7; i++) {
     const a = pts[i], b = pts[i + 1], len = a.distanceTo(b);
-    const r = 0.26 * s * (1 - i / 8);
+    const r = 0.28 * s * (1 - i / 14);
     const m = new THREE.Mesh(GEO.cone, GOLD);
     m.scale.set(r, len * 1.05, r);
     m.position.copy(a).add(b).multiplyScalar(0.5);
@@ -449,8 +449,7 @@ function spire(g, x, y, z, base, tiers, th) {
     mesh(new THREE.CylinderGeometry(rb * 0.92, rb * 1.08, th * 0.16, 4, 1).rotateY(PI / 4), GOLD, g, x, yy + th * 0.08, z);
     yy += th;
   }
-  mesh(GEO.sph, M(0xfff4d0), g, x, yy + 0.3, z, 0.5 * base * 0.3 + 0.2);
-  mesh(GEO.cone, GOLD, g, x, yy + 0.4 + th * 1.5, z, 0.22, th * 3, 0.22);
+  mesh(new THREE.CylinderGeometry(0.07, 0.34, th * 2.6, 10), GOLD, g, x, yy - 0.1 + th * 1.3, z);   // tapered finial with a softly rounded tip
   return yy;
 }
 function gableRoof(g, w, d, h, x, y, z, roofCol, faceScale) {
@@ -494,7 +493,6 @@ function stupaFinial(g, x, y, z, s) {
   const w = M(0xf7f2e2);
   box(g, 1.6 * s, 0.4 * s, 1.6 * s, x, y + 0.2 * s, z, w);
   for (let i = 0; i < 4; i++) mesh(new THREE.CylinderGeometry((0.5 - i * 0.08) * s, (0.8 - i * 0.12) * s, 0.55 * s, 4, 1).rotateY(PI / 4), w, g, x, y + (0.7 + i * 0.5) * s, z);
-  mesh(GEO.cone, w, g, x, y + 3.1 * s, z, 0.14 * s, 1.2 * s, 0.14 * s);
 }
 function makePalace() {
   // Chanchhaya-style open pavilion (Royal Palace, Phnom Penh): front faces +z
@@ -515,7 +513,7 @@ function makePalace() {
   }
   // white lamp posts flanking the central path
   for (const sx of [-1, 1]) {
-    cyl(g, 0.35, 8, sx * 17, 4.5, 26, white); mesh(GEO.sph, white, g, sx * 17, 8.8, 26, 0.9, 0.9, 0.9);
+    cyl(g, 0.35, 8, sx * 17, 4.5, 26, white);
     mesh(GEO.cone, GOLD, g, sx * 17, 10.4, 26, 0.5, 2, 0.5);
   }
   // pavilion platform with front steps
@@ -554,12 +552,11 @@ function makePalace() {
   box(g, 15, 0.6, 9, 0, 23.8, 4, GOLD);
   for (const sx of [-1, 1]) {     // flanking spired gables on the upper tier, as on the Throne Hall
     gableRoof(g, 13, 9, 6.5, sx * 22, 19.0, 6, 0xd9962a, 0.88);
-    spire(g, sx * 22, 24.5, 1, 2.2, 6, 1.5);
+    spire(g, sx * 22, 25.0, 6, 1.6, 6, 1.5);   // sits on the gable ridge (ridge y 25.5, z 1.5..10.5)
   }
   // small white stupas along the roof edge in front of the upper tier
-  for (const x of [-4.5, 0, 4.5]) stupaFinial(g, x, 21.4, 11, x === 0 ? 1.3 : 0.95);
   // the tall central spire
-  spire(g, 0, 28.5, -1, 3.6, 10, 2.1);
+  spire(g, 0, 30.8, 4, 2.4, 10, 2.1);   // seated on the top gable ridge (y 31.5)
   // Silver Pagoda behind-left (+x because the screen is mirrored): white base, gold tiered roof, tall spire
   const sx0 = 56, sz0 = -16;
   box(g, 16, 5, 12, sx0, 2.5, sz0, white); box(g, 17, 0.6, 13, sx0, 5.3, sz0, shade);
@@ -582,14 +579,13 @@ function whiteChedi(g, x, z, s) {
   // terraced square plinths with corner stupas
   for (const a of [-1, 1]) for (const b of [-1, 1]) stupaFinial(g, x + a * 4.2 * s, 2.8 * s, z + b * 4.2 * s, 0.9 * s);
   // bell body: lathe profile, white lime plaster, gold ring mouldings, tall gilded spire
-  const pts = [[0, 0], [2.9, 0], [3.0, 0.7], [2.5, 1.5], [3.1, 2.4], [3.4, 4.2], [3.1, 6.6], [2.4, 8.8], [2.0, 10.2], [2.3, 10.9], [1.7, 11.6], [1.4, 13.5], [1.1, 16.5], [0.8, 19.5], [0.55, 22], [0.3, 24.5], [0, 28]]
+  const pts = [[0, 0], [2.9, 0], [3.0, 0.7], [2.5, 1.5], [3.1, 2.4], [3.4, 4.2], [3.1, 6.6], [2.4, 8.8], [2.0, 10.2], [2.3, 10.9], [1.7, 11.6], [1.4, 13.5], [1.2, 16.5], [1.05, 19.5], [0.8, 22], [0.65, 23.6], [0.6, 24.2], [0, 24.3]]
     .map(p => new THREE.Vector2(p[0] * s, p[1] * s));
   mesh(new THREE.LatheGeometry(pts, 20), white, g, x, 4.0 * s, z);
   for (const [y, r] of [[4.9, 3.15], [7.2, 3.25], [11.0, 2.35], [12.6, 1.55]]) mesh(new THREE.CylinderGeometry(r * s, r * s, 0.28 * s, 20), GOLD, g, x, (4.0 + y) * s * 0.995 + 0.0, z);
   // niches with seated Buddha hint on the four faces of the lower body
   for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) box(g, (dx ? 0.3 : 1.6) * s, 2.2 * s, (dz ? 0.3 : 1.6) * s, x + dx * 3.3 * s, 6.2 * s, z + dz * 3.3 * s, M(0xb5791d));
-  mesh(GEO.cone, GOLD, g, x, (4.0 + 28 + 5) * s, z, 0.2 * s, 10 * s, 0.2 * s);
-  mesh(GEO.sph, GOLD, g, x, (4.0 + 24.6) * s, z, 0.45 * s, 0.45 * s, 0.45 * s);
+  mesh(new THREE.CylinderGeometry(0.12 * s, 0.6 * s, 7 * s, 12), GOLD, g, x, (4.0 + 24.3 + 3.5) * s, z);   // tapered gold crown, rounded tip
 }
 function makeWatOunalom() {
   const g = new THREE.Group();
@@ -633,9 +629,9 @@ function makeWatOunalom() {
   gableRoof(g, 30, 22, 8.5, 0, 14.0, vz, orange, 0.86);
   gableRoof(g, 22, 18, 7.4, 0, 21.0, vz, 0xe8851e, 0.86);
   gableRoof(g, 15, 13, 6.2, 0, 27.4, vz, 0xf09a22, 0.86);
-  box(g, 1.2, 0.8, 14, 0, 33.4, vz, GOLD);
-  for (const x of [-5, 5]) stupaFinial(g, x, 33.6, vz, 0.7);
-  spire(g, 0, 33.9, vz, 1.3, 5, 0.9);
+  box(g, 2.0, 1.4, 14, 0, 33.3, vz, GOLD);
+  for (const dz of [-5, 5]) stupaFinial(g, 0, 33.8, vz + dz, 0.7);   // on the ridge line, not beside it
+  spire(g, 0, 33.8, vz, 1.3, 5, 0.9);
   // front gable: gold pediment glimpsed over the portico
   box(g, 22, 4, 5, 0, 15.6, vz + 12, cream);
   gableRoof(g, 18, 6, 6.0, 0, 17.5, vz + 12.5, 0xdb6a22, 0.88);
@@ -673,7 +669,6 @@ function makeStupa() {
     .map(p => new THREE.Vector2(p[0], p[1]));
   const lathe = new THREE.Mesh(new THREE.LatheGeometry(pts, 14), GOLD); lathe.position.y = 3.2; g.add(lathe);
   for (let i = 0; i < 4; i++) { cyl(g, 2.8 - i * 0.55, 0.28, 0, 8 + i * 2.2, 0, M(0xb3202a)); }
-  mesh(GEO.sph, GOLD, g, 0, 27.4, 0, 0.35, 0.35, 0.35);
   return g;
 }
 
