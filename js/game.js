@@ -1040,7 +1040,7 @@ function buildCourse() {
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
 const BOW_U0 = 0.7, BOW_RAKE = 0.9, BOW_RISE = 0.95;   // racing-boat bow (side view as in the reference drawing): nearly flat sheer, keel line curving up to meet it at a blunt ~0.4 m thick end under a gold cap
-const STERN_U0 = 0.74, STERN_RAKE = 1.6, STERN_RISE = 1.3;   // the stern sweeps up in the same long swan-neck curve as the bow (reference drawing)
+const STERN_U0 = 0.74, STERN_RAKE = 1.6, STERN_RISE = 1.7, STERN_CURL = 0.9;   // the stern sweeps up in the same long swan-neck curve as the bow (reference drawing)
 const hullW = au => 0.17 + 0.83 * Math.pow(1 - Math.pow(au, 2.4), 0.85);
 const hullD = au => 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
 // side profile at station u (-1 stern … 1 bow): x, sheer height, depth below the sheer, half-width
@@ -1050,7 +1050,7 @@ function hullProfile(u) {
     const t = (au - STERN_U0) / (1 - STERN_U0), w0 = hullW(STERN_U0);
     const top = 0.82 + STERN_RISE * (0.35 * t + 0.35 * Math.pow(t, 2) + 0.3 * Math.pow(t, 4));   // rail sweeps up and curls a little more at the very end
     const b0 = 0.82 - hullD(STERN_U0), b1 = 0.82 + STERN_RISE - 0.16, bot = b0 + (b1 - b0) * Math.pow(t, 1.9);
-    return { x: u * HL - STERN_RAKE * (0.7 * Math.pow(t, 1.4) + 0.3 * Math.pow(t, 3)), top, d: top - bot, w: w0 * (1 - 0.55 * Math.pow(t, 1.4)), t };
+    return { x: u * HL - STERN_RAKE * (0.7 * Math.pow(t, 1.4) + 0.3 * Math.pow(t, 3)) + STERN_CURL * Math.pow(t, 5), top, d: top - bot, w: w0 * (1 - 0.55 * Math.pow(t, 1.4)), t };
   }
   if (u > 0 && au > BOW_U0) {   // swan-neck bow measured from the reference drawing: sheer and keel both curve up (concave), meeting at a thin narrow tip
     const t = (au - BOW_U0) / (1 - BOW_U0), w0 = hullW(BOW_U0);
@@ -1504,7 +1504,7 @@ function makeBoat(si) {
   // bow: plain (prow removed); stern flag; stern: upturned tail with red / black tassels (as on real racing boats)
   {
     // flag pole + flag hang off a pivot at the pole's foot, raked back 35 degrees
-    const flagRig = new THREE.Group(); flagRig.position.set(-HL - STERN_RAKE * 0.92, 0.82 + STERN_RISE - 0.12, 0); flagRig.rotation.z = 35 * PI / 180; body.add(flagRig);
+    const flagRig = new THREE.Group(); { const fp = hullProfile(-(STERN_U0 + 0.85 * (1 - STERN_U0))); flagRig.position.set(fp.x, fp.top - 0.15, 0); } flagRig.rotation.z = 35 * PI / 180; body.add(flagRig);   // pole foot sits on the actual stern rail
     mesh(GEO.cyl, M(0xe9c477), flagRig, 0, 0.9, 0, 0.035, 1.8, 0.035);                                   // flag pole
     if (s.num) {   // boat number on the stern flag, readable from both sides
       const ft = canvasTex(160, 100, (c, w, h) => {
@@ -1525,7 +1525,7 @@ function makeBoat(si) {
     }
     // prow / stern ornament as on real racing boats: gold gourd knob, embroidered navy cloth banner with studs, black horsehair tassel, saffron cloth ribbons
     for (const ex of [HL + 0.12, -HL - 0.12]) {   // bow and stern (mirrored)
-      const px = ex > 0 ? HL + BOW_RAKE - 0.05 : -HL - STERN_RAKE + 0.03, py = ex > 0 ? 0.82 + BOW_RISE - 0.22 : 0.82 + STERN_RISE - 0.04;
+      const px = ex > 0 ? HL + BOW_RAKE - 0.05 : -HL - STERN_RAKE + STERN_CURL + 0.03, py = ex > 0 ? 0.82 + BOW_RISE - 0.22 : 0.82 + STERN_RISE - 0.04;
       const mk2 = (z, ph, k) => { const g = new THREE.Group(); g.position.set(px, py, z); body.add(g); anim.tassels.push({ g, ph: ph + ex * 0.3, k: ex < 0 ? k * 1.2 : k * 0.8 }); return g; };
       const main = mk2(0, 0.4, 0.6);
       const bt = canvasTex(64, 160, (c, w, h) => {
