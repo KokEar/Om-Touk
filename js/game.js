@@ -1077,15 +1077,15 @@ function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used f
   return g;
 }
 // closed deck over the front of the bow (a broad spoon-shaped top, as on the reference boat)
-function bowDeckGeometry() {
+function bowDeckGeometry(stern) {
   const pos = [], uv = [], idx = [], K = 12, U1 = 0.88;   // deck starts ahead of the apsara so the hull stays open around her (a cockpit to sit and dance in)
-  for (let k = 0; k <= K; k++) { const P = hullProfile(U1 + (1 - U1) * k / K); pos.push(P.x, P.top + 0.004, -P.w, P.x, P.top + 0.004, P.w); uv.push(k / K, 0, k / K, 1); }
+  for (let k = 0; k <= K; k++) { const uu = U1 + (1 - U1) * k / K, P = hullProfile(stern ? -uu : uu), x = stern ? P.x - STERN_RAKE * Math.pow(uu, 3) : P.x; pos.push(x, P.top + 0.004, -P.w, x, P.top + 0.004, P.w); uv.push(k / K, 0, k / K, 1); }
   for (let k = 0; k < K; k++) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
-const BOWDECK_GEO = bowDeckGeometry(), HULL_GEO = hullGeometry(), INNER_GEO = hullGeometry(true);
+const BOWDECK_GEO = bowDeckGeometry(), STERNDECK_GEO = bowDeckGeometry(true), HULL_GEO = hullGeometry(), INNER_GEO = hullGeometry(true);
 
 function tubeAlong(points, r, segs, mat, tapered) {
   const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], p[1], p[2])));
@@ -1311,24 +1311,37 @@ function makeApsara(styleIdx) {
   const arm = () => {
     const up = mk(upG, skin), fo = mk(foG, skin), el = mesh(GEO.sph, skin, root, 0, 0, 0, 0.04, 0.04, 0.04), hand = new THREE.Group(); root.add(hand);
     const armlet = mesh(ringG, GOLD, root, 0, 0, 0, 0.056, 0.056, 0.056);   // gold upper-arm band (placed + aligned in doArm)
-    mesh(GEO.sph, skin, hand, 0, 0.045, 0, 0.034, 0.055, 0.02);   // palm
+    mesh(GEO.sph, skin, hand, 0, 0.056, 0, 0.036, 0.05, 0.017);   // palm
+    mesh(GEO.sph, skin, hand, 0, 0.087, 0, 0.034, 0.014, 0.0145);   // knuckle ridge
+    mesh(GEO.sph, skin, hand, 0.02, 0.04, 0, 0.018, 0.03, 0.02);   // thumb pad (thenar)
     mesh(GEO.sph, skin, hand, 0, 0.022, 0, 0.028, 0.03, 0.022);    // heel of the hand, blends into the wrist
-    const fing = new THREE.Group(); fing.position.y = 0.088; hand.add(fing);   // fingers curl/flick as one group
+    const fing = new THREE.Group(); fing.position.y = 0.094; hand.add(fing);   // fingers curl/flick as one group
     const fjoints = [];
-    for (let k = 0; k < 4; k++) {   // four slim, tapered two-joint fingers with gold dancer's finger tips
-      const z = (k - 1.5) * 0.0185, len = k === 1 || k === 2 ? 0.052 : (k === 0 ? 0.04 : 0.045);
-      const f1 = new THREE.Group(); f1.position.set(0, 0, z); fing.add(f1);
-      mesh(capsule(0.0085, len), skin, f1, 0, len / 2, 0, 1, 1, 1);
-      const f2 = new THREE.Group(); f2.position.y = len; f1.add(f2);
-      mesh(capsule(0.0072, len * 0.9), skin, f2, 0, len * 0.45, 0, 1, 1, 1);
-      mesh(GEO.cone, GOLD, f2, 0, len * 0.9 + 0.012, 0, 0.0082, 0.034, 0.0082);   // gold fingertip cap
-      fjoints.push(f1, f2);
+    for (let k = 0; k < 4; k++) {   // four slim three-phalanx fingers (proximal/middle/distal) with knuckles and gold dancer's tips
+      // fingers fan out across the palm width (x); k=3 is the index (thumb side, +x), k=0 the pinky
+      const x = (k - 1.5) * 0.0185, len = [0.048, 0.062, 0.07, 0.063][k];
+      const seg = [len * 0.45, len * 0.32, len * 0.25], rad = [0.0085, 0.0076, 0.0068];
+      let par = fing, prev = null;
+      for (let q = 0; q < 3; q++) {
+        const g = new THREE.Group();
+        if (q === 0) { g.position.set(x, 0.004 - 0.004 * Math.abs(k - 1.5), 0); g.rotation.z = -(k - 1.5) * 0.06; } else g.position.y = seg[q - 1];
+        par.add(g);
+        mesh(GEO.sph, skin, g, 0, 0, 0, rad[q] * 1.05, rad[q] * 1.05, rad[q] * 1.05);   // knuckle
+        mesh(capsule(rad[q], seg[q] * 0.9), skin, g, 0, seg[q] / 2, 0, 1, 1, 1);
+        if (q === 2) mesh(capsule(rad[q] * 1.14, seg[q] * 0.45), GOLD, g, 0, seg[q] * 0.72, 0, 1, 1, 1);   // gold thimble-style fingertip cap
+        fjoints.push(g); par = g;
+      }
     }
-    const thumb = new THREE.Group(); thumb.position.set(0.024, 0.036, 0); thumb.rotation.z = -0.42; hand.add(thumb);   // thumb on the front edge of the palm
-    mesh(capsule(0.0095, 0.03), skin, thumb, 0, 0.022, 0, 1, 1, 1); mesh(capsule(0.0078, 0.026), skin, thumb, 0, 0.05, 0, 1, 1, 1);
-    mesh(GEO.cone, GOLD, thumb, 0, 0.075, 0, 0.0085, 0.03, 0.0085);
+    const thumb = new THREE.Group(); thumb.position.set(0.022, 0.03, 0); thumb.rotation.z = -0.55; hand.add(thumb);   // thumb springs from the heel on the front edge of the palm
+    mesh(GEO.sph, skin, thumb, 0, 0.008, 0, 0.014, 0.03, 0.013);                // metacarpal bulge
+    mesh(capsule(0.0098, 0.026), skin, thumb, 0, 0.034, 0, 1, 1, 1);           // proximal phalanx
+    const thumbTip = new THREE.Group(); thumbTip.position.y = 0.05; thumb.add(thumbTip); thumbTip.rotation.x = 0;
+    mesh(GEO.sph, skin, thumbTip, 0, 0, 0, 0.0102, 0.0102, 0.0102);
+    mesh(capsule(0.0086, 0.024), skin, thumbTip, 0, 0.02, 0, 1, 1, 1);
+    mesh(GEO.sph, skin, thumbTip, 0, 0.036, 0, 0.0086, 0.0095, 0.0086);
+    mesh(capsule(0.0098, 0.009), GOLD, thumbTip, 0, 0.026, 0, 1, 1, 1);        // gold cap
     for (const y of [0.0, 0.016]) mesh(ringG, GOLD, hand, 0, y, 0, 0.034, 0.034, 0.034);   // bracelets
-    return { up, fo, el, hand, fing, fjoints, thumb, armlet };
+    return { up, fo, el, hand, fing, fjoints, thumb, thumbTip, armlet };
   };
   const armR = arm(), armL = arm();
 
@@ -1352,8 +1365,8 @@ function makeApsara(styleIdx) {
     we.set(0.12, 0, 0.18 * Math.sin(pp - 0.9))   // wrists flex forwards/backwards only;
     wq.setFromEuler(we); A.hand.quaternion.multiply(wq);
     const cu = 0.12 + 0.3 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers relax then curl softly toward the palm (palm faces the body: -z on the right hand, +z on the left)
-    A.fjoints.forEach((j, i) => { j.rotation.x = -sd * cu * (i % 2 ? 1.3 : 0.7); });
-    A.thumb.rotation.x = sd * 0.15;
+    A.fjoints.forEach((j, i) => { j.rotation.x = -sd * cu * [0.7, 1.0, 0.9][i % 3] * (1.25 - 0.18 * Math.floor(i / 3)); });   // pinky curls most, index least
+    A.thumb.rotation.x = sd * 0.15; A.thumbTip.rotation.x = -sd * (0.1 + 0.5 * cu);
   }
 
   // low-pass filtered state: gives follow-through, removes any jerks
@@ -1402,9 +1415,9 @@ function makeApsara(styleIdx) {
     sm(F.hR, T.hR, 4, dt); sm(F.hR2, F.hR, 4, dt); sm(F.hR3, F.hR2, 4, dt); T.hR.copy(F.hR3); sm(F.hL, T.hL, 4, dt); sm(F.hL2, F.hL, 4, dt); sm(F.hL3, F.hL2, 4, dt); T.hL.copy(F.hL3);
     curPh = ph; wrist.f += ((0.4 + 0.2 * Math.sin(ph + 0.6)) - wrist.f) * (1 - Math.exp(-6 * dt));
     T.shS.set(0, 0.54, 0.19).applyMatrix4(torso.matrix);
-    doArm(armR, T.shS.clone(), T.hR.clone(), V(-0.2, -0.7, 1), 1);
+    doArm(armR, T.shS.clone(), T.hR.clone(), V(-0.1, -1, 0.5), 1);   // elbow pole: mostly down, so it stays well-conditioned when the hand swings close to the body (the old forward-pointing pole made the elbow whip)
     T.shS.set(0, 0.54, -0.19).applyMatrix4(torso.matrix);
-    doArm(armL, T.shS.clone(), T.hL.clone(), V(-0.5, -0.8, -1), -1);
+    doArm(armL, T.shS.clone(), T.hL.clone(), V(-0.4, -1, -0.1), -1);   // elbow pole mostly down (the old sideways pole made the left elbow flip)
   }
   update(0, 0, 10);
   return { root, update, speed: st.speed, hands: [armR.hand, armL.hand] };
@@ -1458,7 +1471,7 @@ function makeBoat(si) {
       });
       deckMat = new THREE.MeshLambertMaterial({ map: dt, side: THREE.DoubleSide });
     } else deckMat = new THREE.MeshLambertMaterial({ color: s.hull, side: THREE.DoubleSide });
-    body.add(new THREE.Mesh(BOWDECK_GEO, deckMat));
+    body.add(new THREE.Mesh(BOWDECK_GEO, deckMat)); body.add(new THREE.Mesh(STERNDECK_GEO, deckMat));   // same painted deck mirrored onto the stern
   }
 
   // deck floor inside the hull, just above the waterline, so no water shows through the open hull
@@ -1500,16 +1513,17 @@ function makeBoat(si) {
       flag.position.set(-0.5, 1.55, 0); flagRig.add(flag);
     }
     // prow / stern ornament as on real racing boats: gold gourd knob, embroidered navy cloth banner with studs, black horsehair tassel, saffron cloth ribbons
-    for (const ex of [HL + 0.12]) {   // bow only (stern has just the flag)
-      const px = HL + BOW_RAKE - 0.05, py = 0.82 + BOW_RISE - 0.22;
+    for (const ex of [HL + 0.12, -HL - 0.12]) {   // bow and stern (mirrored)
+      const px = ex > 0 ? HL + BOW_RAKE - 0.05 : -HL - STERN_RAKE + 0.03, py = ex > 0 ? 0.82 + BOW_RISE - 0.22 : 0.82 + STERN_RISE - 0.04;
       const mk2 = (z, ph, k) => { const g = new THREE.Group(); g.position.set(px, py, z); body.add(g); anim.tassels.push({ g, ph: ph + ex * 0.3, k: ex < 0 ? k * 1.2 : k * 0.8 }); return g; };
       const main = mk2(0, 0.4, 0.6);
       const bt = canvasTex(64, 160, (c, w, h) => {
-        c.fillStyle = '#16254f'; c.fillRect(0, 0, w, h);
-        c.strokeStyle = '#d8dce6'; c.lineWidth = 2; c.strokeRect(5, 5, w - 10, h - 10);
-        c.strokeStyle = '#e2c25a'; c.lineWidth = 2;
+        const hr = (s.hull >> 16) & 255, hg = (s.hull >> 8) & 255, hb = s.hull & 255, light = 0.299 * hr + 0.587 * hg + 0.114 * hb > 150;   // banner takes the boat's hull colour; trim flips dark on light hulls
+        c.fillStyle = '#' + s.hull.toString(16).padStart(6, '0'); c.fillRect(0, 0, w, h);
+        c.strokeStyle = light ? '#2a2a2a' : '#d8dce6'; c.lineWidth = 2; c.strokeRect(5, 5, w - 10, h - 10);
+        c.strokeStyle = light ? '#7a5a10' : '#e2c25a'; c.lineWidth = 2;
         for (let y = 14; y < h - 20; y += 22) { c.beginPath(); c.moveTo(10, y); c.lineTo(w / 2, y + 14); c.lineTo(w - 10, y); c.stroke(); }   // chevron embroidery
-        c.fillStyle = '#c9ced8'; for (let y = 22; y < h - 10; y += 22) { c.beginPath(); c.arc(w / 2, y + 6, 3, 0, 6.3); c.fill(); }   // silver studs
+        c.fillStyle = light ? '#3a3a3a' : '#c9ced8'; for (let y = 22; y < h - 10; y += 22) { c.beginPath(); c.arc(w / 2, y + 6, 3, 0, 6.3); c.fill(); }   // silver studs
       });
       const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.72), new THREE.MeshLambertMaterial({ map: bt, side: THREE.DoubleSide }));
       cloth.rotation.y = PI / 2; cloth.position.set(0, -0.4, 0); main.add(cloth);
