@@ -1224,15 +1224,21 @@ function makeApsara(styleIdx) {
   const upG = new THREE.CylinderGeometry(0.062, 0.047, 1, 12), foG = new THREE.CylinderGeometry(0.047, 0.03, 1, 12);   // tapered limbs
   const arm = () => {
     const up = mk(upG, skin), fo = mk(foG, skin), el = mesh(GEO.sph, skin, root, 0, 0, 0, 0.049, 0.049, 0.049), hand = new THREE.Group(); root.add(hand);
-    mesh(GEO.sph, skin, hand, 0, 0.05, 0, 0.04, 0.07, 0.022);
-    const fing = new THREE.Group(); fing.position.y = 0.09; hand.add(fing);   // fingers curl/flick as one fan
-    for (let k = 0; k < 4; k++) {
-      const z = (k - 1.5) * 0.026, len = k === 1 || k === 2 ? 0.11 : 0.09;
-      const f = mesh(GEO.cone, skin, fing, 0, len / 2, z, 0.016, len, 0.016); f.rotation.x = z * 2.2;
+    mesh(GEO.sph, skin, hand, 0, 0.05, 0, 0.042, 0.062, 0.03);   // palm
+    const fing = new THREE.Group(); fing.position.y = 0.092; hand.add(fing);   // fingers curl/flick as one group
+    const fjoints = [];
+    for (let k = 0; k < 4; k++) {   // four rounded two-joint fingers, held close together
+      const z = (k - 1.5) * 0.02, len = k === 1 || k === 2 ? 0.05 : 0.043;
+      const f1 = new THREE.Group(); f1.position.set(0, 0, z); fing.add(f1);
+      mesh(GEO.cyl, skin, f1, 0, len / 2, 0, 0.017, len, 0.017); mesh(GEO.sph, skin, f1, 0, len, 0, 0.0185, 0.0185, 0.0185);
+      const f2 = new THREE.Group(); f2.position.y = len; f1.add(f2);
+      mesh(GEO.cyl, skin, f2, 0, len * 0.5, 0, 0.0145, len, 0.0145); mesh(GEO.sph, skin, f2, 0, len, 0, 0.016, 0.016, 0.016);
+      fjoints.push(f1, f2);
     }
-    const thumb = mesh(GEO.cone, skin, hand, 0.03, 0.08, 0, 0.018, 0.08, 0.018); thumb.rotation.z = -0.6;
+    const thumb = new THREE.Group(); thumb.position.set(0.032, 0.045, 0); thumb.rotation.z = -0.7; hand.add(thumb);   // thumb on the front edge of the palm
+    mesh(GEO.cyl, skin, thumb, 0, 0.025, 0, 0.021, 0.05, 0.021); mesh(GEO.sph, skin, thumb, 0, 0.05, 0, 0.022, 0.022, 0.022);
     mesh(GEO.cyl, GOLD, hand, 0, 0.0, 0, 0.06, 0.035, 0.06);   // bracelet
-    return { up, fo, el, hand, fing };
+    return { up, fo, el, hand, fing, fjoints, thumb };
   };
   const armR = arm(), armL = arm();
 
@@ -1254,7 +1260,9 @@ function makeApsara(styleIdx) {
     const pp = curPh + (sd < 0 ? 0.9 : 0);
     we.set(0.12, 0, 0.18 * Math.sin(pp - 0.9))   // wrists flex forwards/backwards only;
     wq.setFromEuler(we); A.hand.quaternion.multiply(wq);
-    A.fing.rotation.x = 0.05 + 0.3 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers bloom open then curl back
+    const cu = 0.12 + 0.3 * (0.5 + 0.5 * Math.sin(pp - 1.2));   // fingers relax then curl softly toward the palm (palm faces the body: -z on the right hand, +z on the left)
+    A.fjoints.forEach((j, i) => { j.rotation.x = -sd * cu * (i % 2 ? 1.3 : 0.7); });
+    A.thumb.rotation.x = sd * 0.15;
   }
 
   // low-pass filtered state: gives follow-through, removes any jerks
