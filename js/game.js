@@ -131,24 +131,37 @@ const sky = new THREE.Mesh(
 sky.renderOrder = -10;
 scene.add(sky);
 
-const cloudTex = canvasTex(256, 128, (c, w, h) => {
-  const r = mulberry32(5);
-  for (let i = 0; i < 26; i++) {
-    const x = 40 + r() * 176, y = 50 + r() * 34 - Math.abs(x - 128) * 0.15, rad = 18 + r() * 26;
-    const g = c.createRadialGradient(x, y, 0, x, y, rad);
-    g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+// Cumulus puffs: a cluster of round lobes with a flat, softly shaded underside. Four variants so the sky does not repeat.
+const cloudTexes = [11, 23, 37, 41].map(seed => canvasTex(256, 128, (c, w, h) => {
+  const r = mulberry32(seed), base = 92;
+  const lobes = [];
+  const n = 7 + Math.floor(r() * 4);
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n, x = 34 + t * 188 + (r() - 0.5) * 14;
+    const rad = (14 + Math.sin(t * PI) * 26) * (0.75 + r() * 0.5);
+    lobes.push([x, Math.min(base - rad * 0.55, base - 6 - rad * 0.4) - r() * 8, rad]);
+  }
+  c.save();
+  c.beginPath(); c.rect(0, 0, w, base + 6); c.clip();                       // flat base
+  for (const [x, y, rad] of lobes) {
+    const g = c.createRadialGradient(x - rad * 0.2, y - rad * 0.3, rad * 0.1, x, y, rad);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.65, 'rgba(250,252,255,.96)'); g.addColorStop(1, 'rgba(235,243,252,0)');
     c.fillStyle = g; c.beginPath(); c.arc(x, y, rad, 0, TAU); c.fill();
   }
-});
-// Keep the canvas premultiplied on upload: iOS stores low-alpha pixels premultiplied, and un-premultiplying them gives rainbow speckle noise
-cloudTex.premultiplyAlpha = true; cloudTex.needsUpdate = true;
+  const sh = c.createLinearGradient(0, base - 30, 0, base + 6);              // soft grey-blue shadow under the cloud
+  sh.addColorStop(0, 'rgba(150,175,205,0)'); sh.addColorStop(1, 'rgba(150,175,205,.55)');
+  c.globalCompositeOperation = 'source-atop'; c.fillStyle = sh; c.fillRect(0, base - 30, w, 40);
+  c.restore();
+}));
+// Keep the canvases premultiplied on upload: iOS stores low-alpha pixels premultiplied, and un-premultiplying them gives rainbow speckle noise
+cloudTexes.forEach(t => { t.premultiplyAlpha = true; t.needsUpdate = true; });
 const cloudGroup = new THREE.Group();
-for (let i = 0; i < 16; i++) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: rr(0.55, 0.9), depthWrite: false, fog: false, premultipliedAlpha: true }));
-  const a = rr(-1.2, 1.2) + PI; // spread in front (−z)
-  const dist = rr(700, 1300);
-  s.position.set(Math.sin(a) * dist * 1.1 * (rnd() < .5 ? 1 : -1), rr(130, 330), -dist * rr(0.5, 1));
-  s.scale.set(rr(300, 560), rr(130, 240), 1);
+for (let i = 0; i < 34; i++) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTexes[i % 4], transparent: true, opacity: rr(0.8, 1), depthWrite: false, fog: false, premultipliedAlpha: true }));
+  const a = rr(-1.5, 1.5) + PI;   // spread in front (−z)
+  const dist = rr(800, 1400), w = rr(170, 340);
+  s.position.set(Math.sin(a) * dist * 1.1 * (rnd() < .5 ? 1 : -1), rr(190, 420), -dist * rr(0.55, 1));
+  s.scale.set(w, w * 0.5, 1);
   cloudGroup.add(s);
 }
 scene.add(cloudGroup);
