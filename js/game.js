@@ -1435,8 +1435,9 @@ function makeArmGeo(shirtHex, skinHex) {
 }
 const ARM_MAT = new THREE.MeshLambertMaterial({ vertexColors: true });
 
+function autoNum(name) { let h = 7; for (const ch of String(name || 'Boat')) h = (h * 31 + ch.charCodeAt(0)) % 997; return String(h % 99 + 1); }   // stable 1–99 number from the boat's name
 function makeBoat(si) {
-  const s = typeof si === 'object' ? si : SCHEMES[si], sty = typeof si === 'object' ? s.style : si;
+  const s0 = typeof si === 'object' ? si : SCHEMES[si], sty = typeof si === 'object' ? s0.style : si, s = s0.num ? s0 : Object.assign({}, s0, { num: autoNum(s0.en) });
   const root = new THREE.Group();
   const body = new THREE.Group(); root.add(body);
 
@@ -2540,7 +2541,7 @@ function mk(o) {   // build a scheme from stored / received data (never trust it
   o = o || {}; if (o.c && o.hull === 0xffffff) { o = Object.assign({}, o, { hull: WOOD, dark: shade(WOOD, 0.55) }); }   // older boats saved with the hull off (white) → wood
  const sh = col(o.sh), en = clean(o.en) || 'Boat';
   return { kh: clean(o.kh) || en, en, hull: col(o.hull), dark: col(o.dark), shirts: [sh, sh], css: hex6(sh), custom: !!o.c, hull2: o.h2 == null ? null : col(o.h2), stripes: [0, 1, 2, 3].map(i => Array.isArray(o.zs) && o.zs[i] != null ? col(o.zs[i]) : null), stripeSz: [0, 1, 2, 3].map(i => Array.isArray(o.zz) && Number.isInteger(o.zz[i]) ? clamp(o.zz[i], 1, 6) : 3), centre: o.zc == null ? null : col(o.zc), stripeW: Number.isInteger(o.zw) ? clamp(o.zw, 0, 2) : 1, style: Number.isInteger(o.y) ? Math.abs(o.y) % 5 : 0,
-    num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3),
+    num: String(o.n == null ? '' : o.n).replace(/\D/g, '').slice(0, 3) || autoNum(en),
     shirt: o.sc == null ? null : col(o.sc), oar: o.oc == null ? null : col(o.oc), pole: o.pc == null ? null : col(o.pc),
     bow: typeof o.bw === 'string' && o.bw.length <= 700000 && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+\/=]+$/.test(o.bw) ? o.bw : '',
     skin: typeof o.img === 'string' && o.img.length <= 900000 && /^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(o.img) ? o.img : '' };
