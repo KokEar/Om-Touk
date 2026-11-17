@@ -140,9 +140,11 @@ const cloudTex = canvasTex(256, 128, (c, w, h) => {
     c.fillStyle = g; c.beginPath(); c.arc(x, y, rad, 0, TAU); c.fill();
   }
 });
+// Keep the canvas premultiplied on upload: iOS stores low-alpha pixels premultiplied, and un-premultiplying them gives rainbow speckle noise
+cloudTex.premultiplyAlpha = true; cloudTex.needsUpdate = true;
 const cloudGroup = new THREE.Group();
 for (let i = 0; i < 16; i++) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: rr(0.55, 0.9), depthWrite: false, fog: false }));
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: rr(0.55, 0.9), depthWrite: false, fog: false, premultipliedAlpha: true }));
   const a = rr(-1.2, 1.2) + PI; // spread in front (−z)
   const dist = rr(700, 1300);
   s.position.set(Math.sin(a) * dist * 1.1 * (rnd() < .5 ? 1 : -1), rr(130, 330), -dist * rr(0.5, 1));
