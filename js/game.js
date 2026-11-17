@@ -1414,6 +1414,7 @@ function makeBoat(si) {
   const skins = [0xf1c27d, 0xd9a066, 0xc68642, 0x8d5524, 0xe0ac69].map(c => M(c));
   const hairM = M(0x1a1410), eyeM = M(0x120a06), bandG = new THREE.TorusGeometry(0.19, 0.03, 5, 14);
   const torsoGeo = new THREE.CylinderGeometry(0.25, 0.17, 0.74, 16, 3).scale(0.8, 1, 1.3), neckG = new THREE.CylinderGeometry(0.07, 0.08, 0.14, 8), headG = new THREE.SphereGeometry(0.21, 14, 10);
+  const capG = new THREE.SphereGeometry(0.23, 16, 10, 0, TAU, 0, PI * 0.5), brimG = new THREE.CylinderGeometry(0.17, 0.17, 0.02, 14, 1, false, 0, PI);
   const hairG = new THREE.SphereGeometry(0.22, 14, 8, 0, TAU, 0, PI * 0.55), shoulderG = new THREE.SphereGeometry(0.13, 10, 8);
   const armG = new THREE.CylinderGeometry(0.07, 0.06, 1, 6), shaftG = new THREE.CylinderGeometry(0.035, 0.035, 1, 6), bladeG = new THREE.BoxGeometry(0.05, 0.6, 0.3);
   const bladeM = M(s.oar != null ? s.oar : 0xf3f0e6), shaftM = M(s.pole != null ? s.pole : 0xe9c477);   // two oar colours: shaft (pole) and tip (blade); defaults: wooden shaft, pale blade
@@ -1442,8 +1443,10 @@ function makeBoat(si) {
         const ear = new THREE.Mesh(shoulderG, skinM); ear.position.set(0.0, 1.03, z * 0.2); ear.scale.set(0.35, 0.6, 0.3); R.add(ear);
         const eye = new THREE.Mesh(shoulderG, eyeM); eye.position.set(0.19, 1.07, z * 0.08); eye.scale.set(0.2, 0.22, 0.2); R.add(eye);
       }
-      const hr = new THREE.Mesh(hairG, hairM); hr.position.set(-0.02, 1.07, 0); hr.scale.set(1.0, 1.0, 1.0); R.add(hr);
-      const band = new THREE.Mesh(bandG, teamM); band.position.set(0.02, 1.12, 0); band.scale.set(1.05, 1.05, 1.05); band.rotation.x = PI / 2; R.add(band);   // team headband
+      const hr = new THREE.Mesh(capG, teamM); hr.position.set(-0.01, 1.07, 0); hr.scale.set(1.04, 1.0, 1.04); R.add(hr);   // team-colour cap over the head
+      const brim = new THREE.Mesh(brimG, teamM); brim.position.set(0.1, 1.1, 0); brim.rotation.z = -0.22; brim.scale.set(1.6, 1, 1.15); R.add(brim);   // baseball-cap bill, curved down at the front
+      mesh(GEO.sph, teamM, R, -0.01, 1.3, 0, 0.035, 0.03, 0.035);   // button on the crown
+      mesh(GEO.sph, hairM, R, -0.12, 0.99, 0, 0.1, 0.07, 0.17);   // a little hair showing under the back of the cap
       const armGeo = makeArmGeo(YEL, skinM.color.getHex());
       const armA = new THREE.Mesh(armGeo, ARM_MAT), armB = new THREE.Mesh(armGeo, ARM_MAT);
       const shaft = oarTpl.clone();
@@ -1466,15 +1469,20 @@ function makeBoat(si) {
   const stTr = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.8, 12).scale(0.9, 1, 1.15), M(0x2b2b45)); stTr.position.set(0, 0.42, 0); steer.add(stTr);   // sarong / trousers
   const stTor = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.7, 14, 3).scale(0.85, 1, 1.18), stMat); stTor.position.set(0, 1.03, 0); steer.add(stTor);   // rounded torso
   mesh(GEO.cyl, skins[2], steer, 0.01, 1.4, 0, 0.055, 0.16, 0.055);                       // neck
-  mesh(GEO.sph, skins[2], steer, 0.03, 1.57, 0, 0.18, 0.215, 0.165);                      // oval head
-  mesh(GEO.sph, skins[2], steer, 0.07, 1.47, 0, 0.11, 0.1, 0.11);                       // jaw / chin
-  for (const z of [-1, 1]) mesh(GEO.sph, skins[2], steer, 0.0, 1.55, z * 0.16, 0.025, 0.06, 0.03);   // ears
-  const stHair = new THREE.Mesh(hairG, hairM); stHair.position.set(-0.04, 1.66, 0); stHair.scale.set(1.1, 0.95, 1.08); steer.add(stHair);   // crown of hair, kept above the eyes
-  mesh(GEO.sph, hairM, steer, -0.09, 1.57, 0, 0.14, 0.2, 0.17);                                                                      // hair behind the ears down to the nape
-  const stBun = mesh(GEO.sph, hairM, steer, -0.2, 1.7, 0, 0.1, 0.1, 0.1);                                                          // top-knot at the back
-  const stBand = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.025, 6, 18), GOLD); stBand.position.set(0, 1.64, 0); stBand.rotation.x = PI / 2; steer.add(stBand);   // headband at the hairline
-  for (const z of [-1, 1]) mesh(GEO.sph, M(0x111111), steer, 0.2, 1.57, z * 0.075, 0.03, 0.03, 0.03);   // eyes look toward the bow
-  mesh(GEO.sph, skins[2], steer, 0.22, 1.5, 0, 0.04, 0.04, 0.04);                                         // nose
+  // head built exactly like the rowers' (same head, cap, bill, button), lifted onto the steersman's neck
+  const stHd = new THREE.Group(); stHd.position.set(0, 0.53, 0); steer.add(stHd);
+  const stSkin = skins[2];
+  { const hd = new THREE.Mesh(headG, stSkin); hd.position.set(0.03, 1.04, 0); hd.scale.set(0.95, 1.02, 0.95); stHd.add(hd);
+    const jaw = new THREE.Mesh(headG, stSkin); jaw.position.set(0.06, 0.95, 0); jaw.scale.set(0.62, 0.55, 0.6); stHd.add(jaw);
+    const nose = new THREE.Mesh(shoulderG, stSkin); nose.position.set(0.22, 1.02, 0); nose.scale.set(0.5, 0.7, 0.45); stHd.add(nose);
+    for (const z of [-1, 1]) {
+      const ear = new THREE.Mesh(shoulderG, stSkin); ear.position.set(0.0, 1.03, z * 0.2); ear.scale.set(0.35, 0.6, 0.3); stHd.add(ear);
+      const eye = new THREE.Mesh(shoulderG, eyeM); eye.position.set(0.19, 1.07, z * 0.08); eye.scale.set(0.2, 0.22, 0.2); stHd.add(eye);
+    }
+    const cp = new THREE.Mesh(capG, teamM); cp.position.set(-0.01, 1.07, 0); cp.scale.set(1.04, 1.0, 1.04); stHd.add(cp);
+    const br = new THREE.Mesh(brimG, teamM); br.position.set(0.1, 1.1, 0); br.rotation.z = -0.22; br.scale.set(1.6, 1, 1.15); stHd.add(br);
+    mesh(GEO.sph, teamM, stHd, -0.01, 1.3, 0, 0.035, 0.03, 0.035);
+    mesh(GEO.sph, hairM, stHd, -0.12, 0.99, 0, 0.1, 0.07, 0.17); }
   const stOar = makeOar(s.pole != null ? s.pole : OAR_POLE, s.oar != null ? s.oar : OAR_BLADE); stOar.scale.setScalar(2.55 / OAR_L); body.add(stOar);   // same oar, 3 m long
   const stUpG = new THREE.CylinderGeometry(0.092, 0.074, 1, 20, 2), stForeG = new THREE.CylinderGeometry(0.06, 0.04, 1, 20, 2);
   const stJoint = new THREE.SphereGeometry(1, 18, 12);
