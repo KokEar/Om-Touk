@@ -415,19 +415,31 @@ function hipGeo(w, d, h) {
   return g;
 }
 function chofa(parent, x, y, z, sx, sz, s) {
-  // curved Khmer chofa horn: tapering segments sweeping up and outward, tip curling back
-  const pts = [];
-  for (let i = 0; i <= 7; i++) {
-    const t = i / 7;
-    pts.push(new THREE.Vector3(x + sx * s * (1.5 * Math.sin(t * 1.9)), y + s * 1.8 * t, z + sz * s * (1.5 * Math.sin(t * 1.9))));
+  // Khmer chofa horn: one smooth tapered gilded blade sweeping up and out, tip curling back inward, with small flame notches along the outer edge
+  const N = 20, pts = [];
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const out = 1.7 * Math.sin(t * 1.5) - 0.9 * Math.pow(t, 4);       // out, then curls back at the tip
+    pts.push(new THREE.Vector3(x + sx * s * out, y + s * 2.1 * Math.pow(t, 0.85), z + sz * s * out));
   }
-  for (let i = 0; i < 7; i++) {
-    const a = pts[i], b = pts[i + 1], len = a.distanceTo(b);
-    const r = 0.28 * s * (1 - i / 14);
-    const m = new THREE.Mesh(GEO.cone, GOLD);
-    m.scale.set(r, len * 1.05, r);
-    m.position.copy(a).add(b).multiplyScalar(0.5);
-    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const geo = new THREE.TubeGeometry(curve, 40, 1, 10, false), p = geo.attributes.position, ring = 11;
+  for (let i = 0; i < p.count; i++) {
+    const t = Math.min(1, Math.floor(i / ring) / 40), c = curve.getPointAt(t);
+    const k = 0.3 * s * Math.pow(1 - t, 0.9) + 0.02 * s;               // smooth taper to a fine point
+    p.setXYZ(i, c.x + (p.getX(i) - c.x) * k, c.y + (p.getY(i) - c.y) * k, c.z + (p.getZ(i) - c.z) * k);
+  }
+  geo.computeVertexNormals();
+  parent.add(new THREE.Mesh(geo, GOLD));
+  // seat: a gilded boss sunk into the roof corner so the horn visibly grows out of it
+  const boss = new THREE.Mesh(GEO.sph, GOLD); boss.scale.set(0.5 * s, 0.4 * s, 0.5 * s);
+  boss.position.set(x - sx * 0.15 * s, y - 0.1 * s, z - sz * 0.15 * s); parent.add(boss);
+  for (let i = 3; i <= 15; i += 3) {                                  // flame notches
+    const t = i / N, c = curve.getPointAt(t), tg = curve.getTangentAt(t);
+    const m = new THREE.Mesh(GEO.cone, GOLD), r = 0.13 * s * (1 - t * 0.6);
+    m.scale.set(r, 0.7 * s * (1 - t * 0.5), r);
+    m.position.copy(c).addScaledVector(new THREE.Vector3(-sx, 0.3, -sz).normalize(), 0.12 * s);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-sx * 0.8, 0.6, -sz * 0.8).normalize().lerp(tg, 0.3).normalize());
     parent.add(m);
   }
 }
