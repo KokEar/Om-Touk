@@ -718,8 +718,14 @@ function buildPhnomPenhSkyline(L2) {
     const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
     box(g, w, h, d, 0, h / 2, 0, M(col));
     for (let y = 6; y < h; y += 5) box(g, w + 0.2, 0.8, d + 0.2, 0, y, 0, M(0x6f8ba3));    // glass bands
-    if (crown === 'vattanac') { box(g, w * 0.7, 14, d * 0.7, 0, h + 7, 0, M(col)); mesh(GEO.cone4, M(0xb0b8c0), g, 0, h + 14, 0, w * 0.5, 22, d * 0.5); }
-    else if (crown === 'canadia') { mesh(GEO.cone4, M(0xdfe9f2), g, 0, h, 0, w * 0.72, 18, d * 0.72); }
+    const mast = (y, hh) => cyl(g, 0.35, hh, 0, y + hh / 2, 0, M(0xb0b8c0));
+    if (crown === 'vattanac') {        // stepped setbacks, flat roofs, short mast
+      box(g, w * 0.8, 8, d * 0.8, 0, h + 4, 0, M(col)); box(g, w * 0.55, 8, d * 0.55, 0, h + 12, 0, M(col));
+      box(g, w * 0.4, 1, d * 0.4, 0, h + 16.5, 0, M(0xb0b8c0)); mast(h + 17, 9);
+    }
+    else if (crown === 'canadia') {    // flat roof with a lighter plant room
+      box(g, w * 0.7, 5, d * 0.7, 0, h + 2.5, 0, M(0xdfe9f2)); box(g, w * 0.78, 0.8, d * 0.78, 0, h + 5.4, 0, M(0x9fb0bf)); mast(h + 5.8, 6);
+    }
     else if (crown === 'gold') { box(g, w * 0.8, 6, d * 0.8, 0, h + 3, 0, GOLD); }
     else if (crown === 'twin') { box(g, w * 0.5, 8, d * 0.5, 0, h + 4, 0, M(0xb0b8c0)); }
     return g;
