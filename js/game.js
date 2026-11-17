@@ -2380,6 +2380,17 @@ function updateCamera(dt, wall) {
   }
   gates.forEach(g => {   // keep the start banner fully on screen (narrow portrait phones): shrink + shift it so its text sits in the middle of what you see
     const fb = g.userData.fb; if (!fb) return;
+    if (window.innerWidth < 760 || window.innerHeight > window.innerWidth) {   // mobile: fixed on-screen start banner, doesn't move with the camera/boat
+      const st = G.state; fb.visible = st === 'menu' || st === 'countdown';
+      const fw = new THREE.Vector3(); camera.getWorldDirection(fw); camera.updateMatrixWorld(true);
+      const d = 30;
+      const pt = nx => { const q = new THREE.Vector3(nx, 0.6, 0.5).unproject(camera).sub(camera.position); q.multiplyScalar(d / Math.max(1e-4, q.dot(fw))); return camera.position.clone().add(q); };
+      const pl = pt(-0.92), pr = pt(0.92), pc = pt(0);
+      fb.scale.setScalar(pl.distanceTo(pr) / 25);
+      g.updateMatrixWorld(true); fb.position.copy(g.worldToLocal(pc));
+      return;
+    }
+    fb.visible = true;
     fb.scale.setScalar(1); fb.position.x = fb.userData.bx; fb.updateMatrixWorld(true); camera.updateMatrixWorld(true);
     const hw = 12.5, v = new THREE.Vector3();
     const ndc = dx => v.set(fb.userData.bx + dx, 10.2, -19.5).applyMatrix4(g.matrixWorld).project(camera).x;
