@@ -2014,8 +2014,9 @@ function stepRace(dt) {
       if (!b.finished && b.x + BOW >= RACE_LEN) {
         beatFinishDrum(b);
         b.finished = true; b.finishT = T - (b.x + BOW - RACE_LEN) / Math.max(b.v, 1);
-        if (b.human) { SFX.fanfare(); showBanner('ដល់ទីបញ្ចប់!', 'FINISH!'); }
-        if (b.human || order1(b)) for (let i = 0; i < 90; i++) emit(RACE_LEN + rr(-6, 6), rr(3, 9), b.z + rr(-6, 6), rr(-6, 8), rr(2, 11), rr(-4, 4), rr(1.4, 2.6), rr(0.35, 0.7), rnd(), 0.5 + rnd() * 0.5, rnd(), 6);
+        const first = order1(b);   // only the boat that crosses first gets the celebration
+        if (b.human) { if (first) SFX.fanfare(); showBanner('ដល់ទីបញ្ចប់!', 'FINISH!'); }
+        if (first) for (let i = 0; i < 90; i++) emit(RACE_LEN + rr(-6, 6), rr(3, 9), b.z + rr(-6, 6), rr(-6, 8), rr(2, 11), rr(-4, 4), rr(1.4, 2.6), rr(0.35, 0.7), rnd(), 0.5 + rnd() * 0.5, rnd(), 6);
       }
     }
   }
