@@ -1466,7 +1466,7 @@ function makeBoat(si) {
     const qs = clamp((tx + 0.75) / 1.7, 0, 1), lean = stAmp * (-0.08 + 0.2 * (1 - qs)), cl = Math.cos(lean), sl = Math.sin(lean);
     // hands work exactly like the rowers' (couples 1-18): shoulders at +-0.28 either side, both fists on the shaft (top fist at the grip, second 0.55 down), grip rides with the shoulders and rises 0.1 on the lift
     const shX = SX - 1.3 * sl, shY = SY + 1.3 * cl;
-    const G = sV[0].set(shX + 0.34, shY - 0.35 * (1 - stAmp) - 0.08 + 0.1 * lift * stAmp, 0.65);
+    const G = sV[0].set(shX + 0.34, shY + 0.16 + 0.1 * lift * stAmp, 0.65);   // grip 0.16 above the shoulders, exactly like couples 1-18, waiting or rowing
     sdir.set(-0.3, -0.92, 0.45).normalize();   // waiting: steeper, so the blade rests down in the water (tip about 0.5 below the surface)
     const rest = sV[3].copy(G).addScaledVector(sdir, 2.4);   // resting blade position before the race
     const tip = sV[1].set(SX + tx, ty, 1.0 + out).lerp(rest, 1 - stAmp);
