@@ -247,12 +247,23 @@ function bannerTexture(kh, en, w, h, finish, band) {
       c.strokeStyle = '#ffcf3f'; c.lineWidth = h * 0.05; c.strokeRect(h * 0.025, h * 0.025, w - h * 0.05, h - h * 0.05);
     }
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = '#ffe27a'; c.font = Math.floor(h * 0.34) + 'px ' + FONT_T;
-    c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = 6;
-    c.fillText(kh, w / 2, h * 0.38);
-    c.fillStyle = '#fff'; c.font = '800 ' + Math.floor(h * 0.27) + 'px ' + FONT_B;
-    try { c.letterSpacing = Math.floor(h * 0.025) + 'px'; } catch (e) {}
-    c.fillText(en, w / 2, h * 0.74);
+    // Khmer title: fits inside the inner frame, dark outline + soft shadow for crisp edges
+    let fs = Math.floor(h * 0.30);
+    c.font = fs + 'px ' + FONT_T;
+    while (c.measureText(kh).width > w * 0.8 && fs > 10) { fs -= 2; c.font = fs + 'px ' + FONT_T; }
+    c.lineJoin = 'round'; c.lineWidth = Math.max(3, h * 0.022); c.strokeStyle = 'rgba(90,6,18,.9)';
+    c.shadowColor = 'rgba(0,0,0,.45)'; c.shadowBlur = h * 0.03; c.shadowOffsetY = h * 0.012;
+    c.fillStyle = '#ffe27a';
+    c.strokeText(kh, w / 2, h * 0.40); c.fillText(kh, w / 2, h * 0.40);
+    // English subtitle
+    c.shadowBlur = h * 0.02;
+    let fe = Math.floor(h * 0.22);
+    c.font = '800 ' + fe + 'px ' + FONT_B;
+    try { c.letterSpacing = Math.floor(h * 0.03) + 'px'; } catch (e) {}
+    while (c.measureText(en).width > w * 0.8 && fe > 10) { fe -= 2; c.font = '800 ' + fe + 'px ' + FONT_B; }
+    c.strokeText(en, w / 2, h * 0.745);
+    c.fillStyle = '#fff'; c.fillText(en, w / 2, h * 0.745);
+    c.shadowColor = 'transparent'; c.shadowBlur = 0; c.shadowOffsetY = 0;
     try { c.letterSpacing = '0px'; } catch (e) {}
   });
 }
@@ -936,7 +947,8 @@ function buildCourse() {
   const gate = (x, kh, en, finish, band) => {
     const g = new THREE.Group(); g.position.x = x; scene.add(g); gates.push(g);
     const topG = new THREE.Group(); g.add(topG); g.userData.top = topG;
-    const tex = bannerTexture(kh, en, 1024, 180, finish, band);
+    const tex = bannerTexture(kh, en, 2048, 360, finish, band);
+    tex.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
     // big banner facing the camera, hung on the far side of the course
     const bx = (finish || band) ? -3 : -7;
     const fb = new THREE.Mesh(new THREE.PlaneGeometry(25, 4.4), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false }));
