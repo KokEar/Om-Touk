@@ -330,7 +330,7 @@ function paintHull(c, W, HH, hull, dark, hull2, stripes, sw, centre, zsz) {
   c.fillStyle = GOLD; c.beginPath(); c.arc(0, 14, 5, 0, TAU); c.fill();
   c.restore();
   // eye with a gold curled brow, facing the bow
-  c.save(); c.translate(eyeX, cy + 6); c.rotate(0.3); c.scale(-1, 1);   // canvas x = 0 is the bow (texture is mirrored), so the eye sits at 0.2W and is drawn flipped to look forward
+  c.save(); c.translate(eyeX, cy + 6); c.rotate(0.3); c.scale(-0.75, 0.75);   // canvas x = 0 is the bow (texture is mirrored), so the eye sits at 0.2W and is drawn flipped to look forward
   leaf(14, -12, 60, 11, -0.35); curl(-30, 6, 12, -1);
   c.fillStyle = INK; c.beginPath(); c.ellipse(0, 0, 36, 24, 0, 0, TAU); c.fill();
   c.fillStyle = GOLD; c.beginPath(); c.ellipse(0, 0, 32, 20, 0, 0, TAU); c.fill();
