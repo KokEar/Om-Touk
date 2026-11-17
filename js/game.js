@@ -952,7 +952,7 @@ function buildCourse() {
     // big banner facing the camera, hung on the far side of the course
     const bx = (finish || band) ? -3 : -7;
     const fb = new THREE.Mesh(new THREE.PlaneGeometry(25, 4.4), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, fog: false }));
-    fb.position.set(bx, 10.2, -19.5); if (!band && !finish) g.add(fb);   // no signboard on band or finish gates
+    fb.position.set(bx, 10.2, -19.5); if (!band && !finish) { g.add(fb); g.userData.fb = fb; fb.userData.bx = bx; }   // no signboard on band or finish gates
     if (false) for (const dx of [-13.2, 13.2]) {
       cyl(g, 0.4, 13, bx + dx, 6.5, -19.5, M(0xb3202a)); mesh(GEO.cone, GOLD, g, bx + dx, 13.8, -19.5, 0.55, 1.4, 0.55);
     }
@@ -2387,6 +2387,19 @@ function updateCamera(dt, wall) {
     camera2.lookAt(camLook2);
     camera2.fov = lerp(camera2.fov, f2, 1 - Math.exp(-dt * 3)); camera2.updateProjectionMatrix();
   }
+  gates.forEach(g => {   // keep the start banner fully on screen (narrow portrait phones): shrink + shift it so its text sits in the middle of what you see
+    const fb = g.userData.fb; if (!fb) return;
+    fb.scale.setScalar(1); fb.position.x = fb.userData.bx; fb.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+    const hw = 12.5, v = new THREE.Vector3();
+    const ndc = dx => v.set(fb.userData.bx + dx, 10.2, -19.5).applyMatrix4(g.matrixWorld).project(camera).x;
+    g.updateMatrixWorld(true);
+    const l = ndc(-hw), r = ndc(hw), wN = Math.abs(r - l), lim = 1.84;
+    if (wN > lim) { fb.scale.setScalar(lim / wN * 0.96); }
+    const l2 = ndc(-hw * fb.scale.x), r2 = ndc(hw * fb.scale.x), lo = Math.min(l2, r2), hi = Math.max(l2, r2), perUnit = (r2 - l2) / (2 * hw * fb.scale.x);
+    let shift = 0;
+    if (hi > 0.92) shift = -(hi - 0.92); else if (lo < -0.92) shift = -(lo + 0.92);
+    if (shift && Math.abs(perUnit) > 1e-4) fb.position.x = fb.userData.bx + shift / perUnit;
+  });
   gates.forEach(g => { const far = Math.abs(camera.position.x - g.position.x) > 24; if (g.userData.near) g.userData.near.visible = far; if (g.userData.top) g.userData.top.visible = far; });
   { const fg = gates.find(g => g.userData.drums); if (fg) {   // finish-boat drummers: one strike when THEIR side's boat arrives, otherwise rest
     fg.userData.drums.forEach(d => {
