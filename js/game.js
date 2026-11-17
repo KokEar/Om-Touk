@@ -1034,19 +1034,30 @@ function buildCourse() {
 /* ------------------------------------------------------------------ */
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
-const BOW_RAKE = 0.6, BOW_RISE = 0.5;   // the bow stem leans forward and the sheer sweeps up to a pointed beak
-const STERN_RISE = 1.15;   // the stern tail sweeps up too
-const sheerTop = u => 0.82 + (u < 0 ? STERN_RISE : BOW_RISE) * Math.pow(Math.abs(u), 4);
-function hullGeometry() {
+const BOW_U0 = 0.82, BOW_RAKE = 0.4, BOW_RISE = 0.65;   // racing-boat bow (side view as in the reference drawing): nearly flat sheer, keel line curving up to meet it at a blunt ~0.4 m thick end under a gold cap
+const STERN_RAKE = 0.6, STERN_RISE = 1.15;   // the stern tail sweeps up too
+const hullW = au => 0.17 + 0.83 * Math.pow(1 - Math.pow(au, 2.4), 0.85);
+const hullD = au => 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
+// side profile at station u (-1 stern … 1 bow): x, sheer height, depth below the sheer, half-width
+function hullProfile(u) {
+  const au = Math.abs(u);
+  if (u > 0 && au > BOW_U0) {   // swan-neck bow measured from the reference drawing: sheer and keel both curve up (concave), meeting at a thin narrow tip
+    const t = (au - BOW_U0) / (1 - BOW_U0), w0 = hullW(BOW_U0);
+    const top = 0.82 + BOW_RISE * (Math.pow(t, 2.0) - 0.25 * Math.pow(t, 8));   // sheer sweeps up and flattens into a forward-curling spoon lip
+    const b0 = 0.82 - hullD(BOW_U0), b1 = 0.82 + BOW_RISE * 0.75 - 0.25, bot = b0 + (b1 - b0) * Math.pow(t, 1.6);   // keel curving up smoothly into the stem
+    return { x: u * HL + BOW_RAKE * t, top, d: top - bot, w: w0 * (1 - 0.6 * Math.pow(t, 1.2)), t };
+  }
+  return { x: u * HL, top: 0.82 + (u < 0 ? STERN_RISE * Math.pow(au, 4) : 0), d: hullD(au), w: hullW(au), t: 0 };
+}
+const sheerTop = u => hullProfile(u).top;
+function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used for the inner wooden lining so it never pokes through the thin tip)
   const N = 72, Mm = 14, pos = [], uv = [], idx = [];
   for (let i = 0; i <= N; i++) {
-    const u = -1 + 2 * i / N, au = Math.abs(u), x = u * HL;
-    const w = 0.17 + 0.83 * Math.pow(1 - Math.pow(au, 2.4), 0.85);   // bow keeps a broad, flat-faced scooped end that sweeps up like a real racing boat; stern stays blunt
-    const top = sheerTop(u);
-    const d = 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
+    const u = -1 + 2 * i / N, au = Math.abs(u), P = hullProfile(u);
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
-      pos.push(x + Math.sign(u) * BOW_RAKE * Math.pow(au, 3) * (1 - Math.sin(th)), top - d * Math.sin(th), -w * Math.cos(th));   // upper edge pushed forward = raked bow, keel stays back
+      const ins = inset ? 0.14 * P.t : 0;
+      pos.push(P.x - (u < 0 ? STERN_RAKE * Math.pow(au, 3) * (1 - Math.sin(th)) : 0), P.top - ins - (P.d - ins) * Math.sin(th), -P.w * Math.cos(th));   // stern: upper edge pushed back = raked tail
       uv.push(i / N, j / Mm);
     }
   }
@@ -1065,7 +1076,16 @@ function hullGeometry() {
   g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
-const HULL_GEO = hullGeometry();
+// closed deck over the front of the bow (a broad spoon-shaped top, as on the reference boat)
+function bowDeckGeometry() {
+  const pos = [], idx = [], K = 12, U1 = 0.91;
+  for (let k = 0; k <= K; k++) { const P = hullProfile(U1 + (1 - U1) * k / K); pos.push(P.x, P.top + 0.004, -P.w, P.x, P.top + 0.004, P.w); }
+  for (let k = 0; k < K; k++) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+const BOWDECK_GEO = bowDeckGeometry(), HULL_GEO = hullGeometry(), INNER_GEO = hullGeometry(true);
 
 function tubeAlong(points, r, segs, mat, tapered) {
   const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], p[1], p[2])));
@@ -1318,17 +1338,17 @@ function makeBoat(si) {
   // hull
   const tex = hullTexture(s);
   body.add(new THREE.Mesh(HULL_GEO, new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide })));
-  const inner = new THREE.Mesh(HULL_GEO, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide }));
+  const inner = new THREE.Mesh(INNER_GEO, new THREE.MeshLambertMaterial({ color: 0xa9774a, side: THREE.DoubleSide }));
   inner.scale.set(0.992, 0.97, 0.9); inner.position.y = 0.05; body.add(inner);
+  body.add(new THREE.Mesh(BOWDECK_GEO, new THREE.MeshLambertMaterial({ color: s.hull, side: THREE.DoubleSide })));   // covered bow deck in the boat's hull colour
 
   // deck floor inside the hull, just above the waterline, so no water shows through the open hull
   {
     const YD = 0.55, N = 60, pos = [], idx = [];
     for (let i = 0; i <= N; i++) {
-      const x = -HL + 2 * HL * i / N, hu = Math.abs(x / HL);
-      const hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
-      const top = sheerTop(x / HL), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
-      const sn = clamp((top - YD) / hd, 0, 1), w = sn > 0.8 ? 0 : hw * Math.sqrt(1 - sn * sn) * 0.94;
+      const u = -1 + 2 * i / N, hu = Math.abs(u), P = hullProfile(u), x = P.x;
+      const hw = Math.min(0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7), P.w);
+      const sn = clamp((P.top - YD) / P.d, 0, 1), w = sn > 0.8 || YD < P.top - P.d ? 0 : hw * Math.sqrt(1 - sn * sn) * 0.94;
       pos.push(x, YD, -w, x, YD, w);
     }
     for (let i = 0; i < N; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
@@ -1341,7 +1361,7 @@ function makeBoat(si) {
   // bow: plain (prow removed); stern flag; stern: upturned tail with red / black tassels (as on real racing boats)
   {
     // flag pole + flag hang off a pivot at the pole's foot, raked back 50 degrees
-    const flagRig = new THREE.Group(); flagRig.position.set(-HL - BOW_RAKE * 0.85, 0.82 + STERN_RISE - 0.05, 0); flagRig.rotation.z = 50 * PI / 180; body.add(flagRig);
+    const flagRig = new THREE.Group(); flagRig.position.set(-HL - STERN_RAKE * 0.85, 0.82 + STERN_RISE - 0.05, 0); flagRig.rotation.z = 50 * PI / 180; body.add(flagRig);
     mesh(GEO.cyl, M(0xe9c477), flagRig, 0, 0.9, 0, 0.035, 1.8, 0.035);                                   // flag pole
     if (s.num) {   // boat number on the stern flag, readable from both sides
       const ft = canvasTex(160, 100, (c, w, h) => {
@@ -1362,7 +1382,7 @@ function makeBoat(si) {
     }
     // prow / stern ornament as on real racing boats: gold gourd knob, embroidered navy cloth banner with studs, black horsehair tassel, saffron cloth ribbons
     for (const ex of [HL + 0.12]) {   // bow only (stern has just the flag)
-      const px = ex < 0 ? -HL - BOW_RAKE + 0.1 : HL + BOW_RAKE - 0.1, py = 0.82 + (ex < 0 ? STERN_RISE : BOW_RISE) - 0.1;
+      const px = HL + BOW_RAKE - 0.05, py = 0.82 + BOW_RISE * 0.75 - 0.2;
       const mk2 = (z, ph, k) => { const g = new THREE.Group(); g.position.set(px, py, z); body.add(g); anim.tassels.push({ g, ph: ph + ex * 0.3, k: ex < 0 ? k * 1.2 : k * 0.8 }); return g; };
       const main = mk2(0, 0.4, 0.6);
       const bt = canvasTex(64, 160, (c, w, h) => {
@@ -1374,11 +1394,7 @@ function makeBoat(si) {
       });
       const cloth = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.72), new THREE.MeshLambertMaterial({ map: bt, side: THREE.DoubleSide }));
       cloth.rotation.y = PI / 2; cloth.position.set(0, -0.4, 0); main.add(cloth);
-      const hairM2 = M(0x0c0c0c);
-      for (let k = 0; k < 16; k++) {   // black horsehair strands
-        const l = 0.55 + 0.25 * ((k * 37) % 10) / 10, z = ((k % 8) - 3.5) * 0.04, x = (((k * 13) % 7) - 3) * 0.025;
-        const st2 = mesh(GEO.cyl, hairM2, main, x, -0.75 - l / 2, z, 0.012, l, 0.012); st2.rotation.z = (k % 2 ? 1 : -1) * 0.05 * (1 + k % 3);
-      }
+      const hairM2 = M(0x0c0c0c);   // no hair on the centre of the banner: only the two side tufts below
       for (const z of [-0.22, 0.22]) {   // black horsehair hanging at each side of the banner
         const rb = mk2(z, z * 9, 1.0);
         mesh(GEO.sph, hairM2, rb, 0, 0, 0, 0.07, 0.06, 0.07);
@@ -1406,7 +1422,7 @@ function makeBoat(si) {
     const sx = (7.56 - i * 13.52 / 15) * HL / 10.5;
     // keep every rower inside the hull: narrow the seat spacing where the hull narrows
     const hu = Math.abs(sx / HL), hw = 0.12 + 0.88 * Math.pow(1 - Math.pow(hu, 3.0), 0.7);
-    const htop = sheerTop(sx / HL), hd = 0.3 + 1.05 * Math.pow(1 - Math.pow(hu, 2.2), 0.85);
+    const htop = sheerTop(sx / HL), hd = hullProfile(sx / HL).d;
     const sn = clamp((htop - 0.27) / hd, 0, 0.98), halfW = hw * Math.sqrt(1 - sn * sn);
     const seatZ = clamp(halfW - 0.36, 0.26, 0.52), hullP = { hw, htop, hd };
     if (i < 3) box(body, 0.34, 0.07, seatZ * 2 + 0.3, sx - 0.05, 0.22, 0, wood);
@@ -2141,7 +2157,7 @@ function updateVisuals(dt, wall) {
       const n = b.v * dt * 2.2; let cnt = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
       while (cnt-- > 0) {
         const sd = Math.random() < 0.5 ? -1 : 1;
-        emit(b.x + 9.3 + rr(0, 1.4), 0.08, b.z + sd * 0.5, rr(-3, 0), rr(1.6, 3.4), sd * rr(1.4, 3.2), rr(0.35, 0.7), rr(0.3, 0.6), 0.92, 0.98, 1, 10);
+        emit(b.x + 11.4 + rr(0, 1.4), 0.08, b.z + sd * 0.5, rr(-3, 0), rr(1.6, 3.4), sd * rr(1.4, 3.2), rr(0.35, 0.7), rr(0.3, 0.6), 0.92, 0.98, 1, 10);
       }
       const n2 = b.v * dt * 1.6; cnt = Math.floor(n2) + (Math.random() < n2 % 1 ? 1 : 0);
       while (cnt-- > 0) { const sd = Math.random() < 0.5 ? -1 : 1; emit(b.x + rr(-7, 7), 0.12, b.z + sd * rr(0.95, 1.3), -b.v * 0.45, 0.05, sd * rr(0.2, 0.9), rr(0.9, 1.5), rr(0.7, 1.1), 0.95, 1, 1, 0); }
