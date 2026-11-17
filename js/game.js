@@ -1564,6 +1564,7 @@ function poseRower(r, u, mode, T, spd) {
     if (u < 0.5) { const k = u / 0.5; tx = lerp(0.95, -0.75, smooth(k)); ty = -0.12 - 0.9 * (spd || 0); out = 0.6; }   // blade digs deeper the faster the boat goes
     else { const k = (u - 0.5) / 0.5, a = Math.sin(PI * k); tx = lerp(-0.75, 0.95, smooth(k)); ty = -0.12 - 0.9 * (spd || 0) + (0.85 + 0.9 * (spd || 0)) * a; out = 0.6 + 0.45 * a; lift = a; }
   } else { tx = 0.5; ty = 0.5 + 0.04 * Math.sin(T * 2 + r.sx); out = 1.0; }
+  if (mode === 1) ty += r.i < 3 ? 0.2 : -0.3;   // couples 1-3 hold their oars a little higher, couples 4-18 a little lower
   const q = clamp((tx + 0.75) / 1.7, 0, 1);
   const lean = -0.28 + 0.46 * (1 - q);
   r.R.rotation.z = lean;
