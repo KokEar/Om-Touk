@@ -247,11 +247,13 @@ function bannerTexture(kh, en, w, h, finish, band) {
       c.strokeStyle = '#ffcf3f'; c.lineWidth = h * 0.05; c.strokeRect(h * 0.025, h * 0.025, w - h * 0.05, h - h * 0.05);
     }
     c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = '#ffe27a'; c.font = Math.floor(h * 0.4) + 'px ' + FONT_T;
+    c.fillStyle = '#ffe27a'; c.font = Math.floor(h * 0.34) + 'px ' + FONT_T;
     c.shadowColor = 'rgba(0,0,0,.5)'; c.shadowBlur = 6;
-    c.fillText(kh, w / 2, h * 0.42);
-    c.fillStyle = '#fff'; c.font = '700 ' + Math.floor(h * 0.2) + 'px ' + FONT_B;
-    c.fillText(en, w / 2, h * 0.76);
+    c.fillText(kh, w / 2, h * 0.38);
+    c.fillStyle = '#fff'; c.font = '800 ' + Math.floor(h * 0.27) + 'px ' + FONT_B;
+    try { c.letterSpacing = Math.floor(h * 0.025) + 'px'; } catch (e) {}
+    c.fillText(en, w / 2, h * 0.74);
+    try { c.letterSpacing = '0px'; } catch (e) {}
   });
 }
 
