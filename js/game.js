@@ -1804,7 +1804,7 @@ function updateHud() {
   panels.forEach(p => {
     const b = p.boat;
     p.sync.style.width = (b.sync * 100).toFixed(0) + '%';
-    p.spd.textContent = Math.min(40, Math.round(b.v * 1.63)) + ' km/h';
+    p.spd.textContent = Math.round(Math.min(35, b.v < VMIN ? b.v / VMIN * 5 : 5 + (b.v - VMIN) * 25 / (VMAX - VMIN))) + ' km/h';
     p.cmb.textContent = b.combo > 1 ? '×' + b.combo : '';
     p.el.classList.toggle('boost', b.boostT > 0);
   });
