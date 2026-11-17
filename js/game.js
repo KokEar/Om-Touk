@@ -790,7 +790,7 @@ function buildShore() {
   place(makeStupa(), -62, -100, 1.1, 8);
   place(makeStupa(), 130, -104, 1.0, 8);
   place(makePavilion(), 108, -66, 1.0, 7);
-  place(makeWatOunalom(), BANDS[0], -135, 1.1, 44);   // Wat Ounalom, straight behind the Band 1 gate
+  place(makeWatOunalom(), BANDS[0], -135, 0.9, 44);   // Wat Ounalom, straight behind the Band 1 gate
   // three little houses in front of Wat Ounalom, to its left
   const makeHouse = (wall, roof, h) => {
     const g = new THREE.Group();
