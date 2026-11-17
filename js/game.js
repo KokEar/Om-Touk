@@ -1040,19 +1040,25 @@ function buildCourse() {
 /*  Dragon boat builder                                               */
 /* ------------------------------------------------------------------ */
 const BOW_U0 = 0.7, BOW_RAKE = 0.9, BOW_RISE = 0.95;   // racing-boat bow (side view as in the reference drawing): nearly flat sheer, keel line curving up to meet it at a blunt ~0.4 m thick end under a gold cap
-const STERN_RAKE = 0.6, STERN_RISE = 1.15;   // the stern tail sweeps up too
+const STERN_U0 = 0.74, STERN_RAKE = 1.6, STERN_RISE = 1.3;   // the stern sweeps up in the same long swan-neck curve as the bow (reference drawing)
 const hullW = au => 0.17 + 0.83 * Math.pow(1 - Math.pow(au, 2.4), 0.85);
 const hullD = au => 0.3 + 1.05 * Math.pow(1 - Math.pow(au, 2.2), 0.85);
 // side profile at station u (-1 stern … 1 bow): x, sheer height, depth below the sheer, half-width
 function hullProfile(u) {
   const au = Math.abs(u);
+  if (u < 0 && au > STERN_U0) {   // stern: same swan-neck sweep as the bow, mirrored
+    const t = (au - STERN_U0) / (1 - STERN_U0), w0 = hullW(STERN_U0);
+    const top = 0.82 + STERN_RISE * (0.35 * t + 0.35 * Math.pow(t, 2) + 0.3 * Math.pow(t, 4));   // rail sweeps up and curls a little more at the very end
+    const b0 = 0.82 - hullD(STERN_U0), b1 = 0.82 + STERN_RISE - 0.16, bot = b0 + (b1 - b0) * Math.pow(t, 1.9);
+    return { x: u * HL - STERN_RAKE * (0.7 * Math.pow(t, 1.4) + 0.3 * Math.pow(t, 3)), top, d: top - bot, w: w0 * (1 - 0.55 * Math.pow(t, 1.4)), t };
+  }
   if (u > 0 && au > BOW_U0) {   // swan-neck bow measured from the reference drawing: sheer and keel both curve up (concave), meeting at a thin narrow tip
     const t = (au - BOW_U0) / (1 - BOW_U0), w0 = hullW(BOW_U0);
     const top = 0.82 + BOW_RISE * (0.55 * t + 0.45 * Math.pow(t, 2.6));   // long smooth sweep: sheer rises almost straight like the photo, then curls up a little more at the tip
     const b0 = 0.82 - hullD(BOW_U0), b1 = 0.82 + BOW_RISE - 0.16, bot = b0 + (b1 - b0) * Math.pow(t, 1.9);   // underside stays deep then sweeps up to the tip, as in the photo
     return { x: u * HL + BOW_RAKE * Math.pow(t, 1.4), top, d: top - bot, w: w0 * (1 - 0.72 * Math.pow(t, 1.4)), t };
   }
-  return { x: u * HL, top: 0.82 + (u < 0 ? STERN_RISE * Math.pow(au, 4) : 0), d: hullD(au), w: hullW(au), t: 0 };
+  return { x: u * HL, top: 0.82, d: hullD(au), w: hullW(au), t: 0 };
 }
 const sheerTop = u => hullProfile(u).top;
 function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used for the inner wooden lining so it never pokes through the thin tip)
@@ -1062,7 +1068,7 @@ function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used f
     for (let j = 0; j <= Mm; j++) {
       const th = PI * j / Mm;
       const ins = inset ? 0.06 * P.t : 0;
-      pos.push(P.x - (u < 0 ? STERN_RAKE * Math.pow(au, 3) * (1 - Math.sin(th)) : 0), P.top - ins - (P.d - ins) * Math.sin(th), -P.w * Math.cos(th));   // stern: upper edge pushed back = raked tail
+      pos.push(P.x, P.top - ins - (P.d - ins) * Math.sin(th), -P.w * Math.cos(th));   // stern: upper edge pushed back = raked tail
       uv.push(i / N, j / Mm);
     }
   }
@@ -1084,7 +1090,7 @@ function hullGeometry(inset) {   // inset: lowers the bow sheer a little (used f
 // closed deck over the front of the bow (a broad spoon-shaped top, as on the reference boat)
 function bowDeckGeometry(stern) {
   const pos = [], uv = [], idx = [], K = 12, U1 = 0.88;   // deck starts ahead of the apsara so the hull stays open around her (a cockpit to sit and dance in)
-  for (let k = 0; k <= K; k++) { const uu = U1 + (1 - U1) * k / K, P = hullProfile(stern ? -uu : uu), x = stern ? P.x - STERN_RAKE * Math.pow(uu, 3) : P.x; pos.push(x, P.top + 0.004, -P.w, x, P.top + 0.004, P.w); uv.push(k / K, 0, k / K, 1); }
+  for (let k = 0; k <= K; k++) { const uu = U1 + (1 - U1) * k / K, P = hullProfile(stern ? -uu : uu), x = P.x; pos.push(x, P.top + 0.004, -P.w, x, P.top + 0.004, P.w); uv.push(k / K, 0, k / K, 1); }
   for (let k = 0; k < K; k++) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
@@ -1497,8 +1503,8 @@ function makeBoat(si) {
   const anim = root.userData.anim = { flags: [], tassels: [] };   // stern flag + tassels flutter in updateVisuals
   // bow: plain (prow removed); stern flag; stern: upturned tail with red / black tassels (as on real racing boats)
   {
-    // flag pole + flag hang off a pivot at the pole's foot, raked back 50 degrees
-    const flagRig = new THREE.Group(); flagRig.position.set(-HL - STERN_RAKE * 0.85, 0.82 + STERN_RISE - 0.05, 0); flagRig.rotation.z = 50 * PI / 180; body.add(flagRig);
+    // flag pole + flag hang off a pivot at the pole's foot, raked back 35 degrees
+    const flagRig = new THREE.Group(); flagRig.position.set(-HL - STERN_RAKE * 0.92, 0.82 + STERN_RISE - 0.12, 0); flagRig.rotation.z = 35 * PI / 180; body.add(flagRig);
     mesh(GEO.cyl, M(0xe9c477), flagRig, 0, 0.9, 0, 0.035, 1.8, 0.035);                                   // flag pole
     if (s.num) {   // boat number on the stern flag, readable from both sides
       const ft = canvasTex(160, 100, (c, w, h) => {
@@ -1525,8 +1531,9 @@ function makeBoat(si) {
       const bt = canvasTex(64, 160, (c, w, h) => {
         const hr = (s.hull >> 16) & 255, hg = (s.hull >> 8) & 255, hb = s.hull & 255, light = 0.299 * hr + 0.587 * hg + 0.114 * hb > 150;   // banner takes the boat's hull colour; trim flips dark on light hulls
         c.fillStyle = '#' + s.hull.toString(16).padStart(6, '0'); c.fillRect(0, 0, w, h);
+        if (ex < 0) { const R = ['#e8262b', '#f58a1f', '#f7d51d', '#2fb24c', '#2a8de0', '#4b3fb0', '#9b3fb8']; R.forEach((col, i) => { c.fillStyle = col; c.fillRect(0, Math.floor(h * i / 7), w, Math.ceil(h / 7)); }); }   // rainbow banner on the stern tip
         c.strokeStyle = light ? '#2a2a2a' : '#d8dce6'; c.lineWidth = 2; c.strokeRect(5, 5, w - 10, h - 10);
-        c.strokeStyle = light ? '#7a5a10' : '#e2c25a'; c.lineWidth = 2;
+        c.strokeStyle = ex < 0 ? '#ffffffaa' : light ? '#7a5a10' : '#e2c25a'; c.lineWidth = 2;
         for (let y = 14; y < h - 20; y += 22) { c.beginPath(); c.moveTo(10, y); c.lineTo(w / 2, y + 14); c.lineTo(w - 10, y); c.stroke(); }   // chevron embroidery
         c.fillStyle = light ? '#3a3a3a' : '#c9ced8'; for (let y = 22; y < h - 10; y += 22) { c.beginPath(); c.arc(w / 2, y + 6, 3, 0, 6.3); c.fill(); }   // silver studs
       });
